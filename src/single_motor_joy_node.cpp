@@ -13,21 +13,23 @@ enum class HomingState { NOT_STARTED, HOMING, DONE };
 class SingleMotorJoyNode : public rclcpp::Node {
 public:
     SingleMotorJoyNode() : Node("single_motor_joy_node"), 
-                           prev_sys_state_(SystemState::EMERGENCY), 
-                           homing_state_(HomingState::NOT_STARTED),
                            offset_angle_(0.0f),
-                           target_pos_(0.0f) {
+                           target_pos_(0.0f),
+                           prev_sys_state_(SystemState::EMERGENCY), 
+                           homing_state_(HomingState::NOT_STARTED) {
         
         // パラメータ設定
         this->declare_parameter("motor_id", 1);
-        this->declare_parameter("btn_forward", 1); // デフォルト: Aボタン (Joy-Con/ProCon)
-        this->declare_parameter("btn_backward", 0); // デフォルト: Bボタン
-        this->declare_parameter("move_speed", 2.0f); // 1周期(20ms)あたりの移動量[deg]
+        this->declare_parameter("btn_a", 1); // デフォルト: Aボタン (Joy-Con/ProCon)
+        this->declare_parameter("btn_b", 0); // デフォルト: Bボタン
+        this->declare_parameter("pos_a", 0.0f);      // Aボタンを押したときの目標角度
+        this->declare_parameter("pos_b", 30000.0f);  // Bボタンを押したときの目標角度
 
         motor_id_ = this->get_parameter("motor_id").as_int();
-        btn_forward_ = this->get_parameter("btn_forward").as_int();
-        btn_backward_ = this->get_parameter("btn_backward").as_int();
-        move_speed_ = this->get_parameter("move_speed").as_double();
+        btn_a_ = this->get_parameter("btn_a").as_int();
+        btn_b_ = this->get_parameter("btn_b").as_int();
+        pos_a_ = this->get_parameter("pos_a").as_double();
+        pos_b_ = this->get_parameter("pos_b").as_double();
 
         // Publisher & Subscriber
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
@@ -39,11 +41,13 @@ public:
         timer_ = this->create_wall_timer(20ms, std::bind(&SingleMotorJoyNode::control_loop, this));
         
         RCLCPP_INFO(this->get_logger(), "Single Motor Joy Node Started. Motor ID: %d", motor_id_);
+        RCLCPP_INFO(this->get_logger(), "A Button -> %.1f deg, B Button -> %.1f deg", pos_a_, pos_b_);
     }
 
 private:
-    int motor_id_, btn_forward_, btn_backward_;
-    float move_speed_, offset_angle_, target_pos_;
+    int motor_id_, btn_a_, btn_b_;
+    float pos_a_, pos_b_;
+    float offset_angle_, target_pos_;
     SystemState prev_sys_state_;
     HomingState homing_state_;
     sensor_msgs::msg::Joy latest_joy_;
@@ -84,20 +88,20 @@ private:
             // ホーミング中（電流閾値3000mAで判定）
             if (std::abs(current_fb_.current[motor_id_-1]) > 3000) {
                 offset_angle_ = current_fb_.angle[motor_id_-1];
-                target_pos_ = 0.0f;
+                target_pos_ = pos_a_; // 初期位置をA(0度)にしておく
                 homing_state_ = HomingState::DONE;
-                RCLCPP_INFO(this->get_logger(), "Homing Done.");
+                RCLCPP_INFO(this->get_logger(), "Homing Done. Offset: %.2f", offset_angle_);
             } else {
                 cmd.mode = 1; cmd.target = -300.0f; // ゆっくり下降
                 cmd_msg.motors.push_back(cmd);
             }
         } else if (homing_state_ == HomingState::DONE) {
-            // ジョイコンボタン判定
-            if (latest_joy_.buttons.size() > (size_t)std::max(btn_forward_, btn_backward_)) {
-                if (latest_joy_.buttons[btn_forward_]) {
-                    target_pos_ += move_speed_;
-                } else if (latest_joy_.buttons[btn_backward_]) {
-                    target_pos_ -= move_speed_;
+            // ジョイコンボタン判定 (ボタンが押されたら目標値を切り替える)
+            if (latest_joy_.buttons.size() > (size_t)std::max(btn_a_, btn_b_)) {
+                if (latest_joy_.buttons[btn_a_]) {
+                    target_pos_ = pos_a_;  // Aボタンで0度へ
+                } else if (latest_joy_.buttons[btn_b_]) {
+                    target_pos_ = pos_b_;  // Bボタンで30000度へ
                 }
             }
 
