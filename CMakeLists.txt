@@ -50,6 +50,19 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+add_executable(current_vel_limit_node src/current_vel_limit_node.cpp)
+ament_target_dependencies(current_vel_limit_node
+  rclcpp
+  std_msgs
+  sensor_msgs
+  robomas_interfaces
+)
+
+install(TARGETS
+  current_vel_limit_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
