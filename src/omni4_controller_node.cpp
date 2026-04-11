@@ -16,8 +16,8 @@ public:
         // モーターID
         this->declare_parameter("motor_id_fl", 1);
         this->declare_parameter("motor_id_fr", 2);
-        this->declare_parameter("motor_id_bl", 3);
-        this->declare_parameter("motor_id_br", 4);
+        this->declare_parameter("motor_id_bl", 9);
+        this->declare_parameter("motor_id_br", 10);
         
         // ジョイスティックの軸設定
         // ROS 2のjoyメッセージでは一般に以下のような割り当てになります
