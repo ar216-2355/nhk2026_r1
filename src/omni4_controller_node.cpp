@@ -144,7 +144,7 @@ private:
                 auto msg = robomas_interfaces::msg::CanFrame();
                 msg.id = 0x301;
                 msg.dlc = 8;
-                msg.data = {0x0A, 0x00, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+                msg.data = {0x10, 0x00, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
                 can_pub_->publish(msg);
                 RCLCPP_INFO(this->get_logger(), "Sent CAN Frame (Y button)");
             }
