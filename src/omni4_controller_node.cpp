@@ -13,23 +13,19 @@ public:
     Omni4ControllerNode() : Node("omni4_controller_node") {
         
         // パラメータ設定
-        // モーターID
+        // モーターID（ご提示の設定：fl=1, bl=2, br=9, fr=10）
         this->declare_parameter("motor_id_fl", 1);
+        this->declare_parameter("motor_id_bl", 2);
+        this->declare_parameter("motor_id_br", 9);
         this->declare_parameter("motor_id_fr", 10);
-        this->declare_parameter("motor_id_bl", 9);
-        this->declare_parameter("motor_id_br", 2);
         
         // ジョイスティックの軸設定
-        // ROS 2のjoyメッセージでは一般に以下のような割り当てになります
-        // axes[1]: 左スティック上下 (+: 上, -: 下) -> 前後(vx)
-        // axes[0]: 左スティック左右 (+: 左, -: 右) -> 左右(vy)
-        // axes[3]または[2]: 右スティック左右 (+: 左, -: 右) -> 旋回(omega)
-        this->declare_parameter("axis_linear_x", 0); 
-        this->declare_parameter("axis_linear_y", 1); 
-        this->declare_parameter("axis_angular_z1", 4); 
-        this->declare_parameter("axis_angular_z2", 5); 
+        this->declare_parameter("axis_vx", 1); // L_stick_y (1): 前後
+        this->declare_parameter("axis_vy", 0); // L_stick_x (0): 左右
+        this->declare_parameter("axis_lt", 4); // LT (4): 旋回（左）
+        this->declare_parameter("axis_rt", 5); // RT (5): 旋回（右）
 
-        // 最大速度（rpm等）
+        // 最大速度（rpm）
         this->declare_parameter("max_rpm", 3000.0f);
 
         motor_id_fl_ = this->get_parameter("motor_id_fl").as_int();
@@ -37,9 +33,10 @@ public:
         motor_id_bl_ = this->get_parameter("motor_id_bl").as_int();
         motor_id_br_ = this->get_parameter("motor_id_br").as_int();
 
-        axis_linear_x_ = this->get_parameter("axis_linear_x").as_int();
-        axis_linear_y_ = this->get_parameter("axis_linear_y").as_int() * -1;
-        axis_angular_z_ = this->get_parameter("axis_angular_z1").as_int() - this->get_parameter("axis_angular_z2").as_int();
+        axis_vx_ = this->get_parameter("axis_vx").as_int();
+        axis_vy_ = this->get_parameter("axis_vy").as_int();
+        axis_lt_ = this->get_parameter("axis_lt").as_int();
+        axis_rt_ = this->get_parameter("axis_rt").as_int();
         max_rpm_ = this->get_parameter("max_rpm").as_double();
 
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
@@ -56,7 +53,7 @@ public:
 
 private:
     int motor_id_fl_, motor_id_fr_, motor_id_bl_, motor_id_br_;
-    int axis_linear_x_, axis_linear_y_, axis_angular_z_;
+    int axis_vx_, axis_vy_, axis_lt_, axis_rt_;
     double max_rpm_;
 
     sensor_msgs::msg::Joy latest_joy_;
@@ -85,11 +82,19 @@ private:
         double vy = 0.0;
         double omega = 0.0;
 
-        int max_axis = std::max({axis_linear_x_, axis_linear_y_, axis_angular_z_});
+        int max_axis = std::max({axis_vx_, axis_vy_, axis_lt_, axis_rt_});
         if (latest_joy_.axes.size() > (size_t)max_axis) {
-            vx = latest_joy_.axes[axis_linear_x_];
-            vy = latest_joy_.axes[axis_linear_y_];
-            omega = latest_joy_.axes[axis_angular_z_];
+            // 前後左右の速度（左スティック）
+            vx = latest_joy_.axes[axis_vx_];
+            vy = latest_joy_.axes[axis_vy_];
+            
+            // LT・RTは押していない状態で1、奥まで押し込むと-1になるため、
+            // 押し込み量(0.0 〜 1.0)に変換します。
+            double lt_val = (1.0 - latest_joy_.axes[axis_lt_]) / 2.0; 
+            double rt_val = (1.0 - latest_joy_.axes[axis_rt_]) / 2.0; 
+            
+            // 例: LT(左トリガー)で左旋回(正)、RT(右トリガー)で右旋回(負)とする
+            omega = lt_val - rt_val;
         }
 
         // 4輪オムニホイールの運動学 (X-drive想定)
