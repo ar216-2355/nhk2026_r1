@@ -23,7 +23,7 @@ public:
         this->declare_parameter("axis_vx", 0); // L_stick_y (1): 前後
         this->declare_parameter("axis_vy", 1); // L_stick_x (0): 左右
         this->declare_parameter("axis_lt", 4); // LT (4): 旋回（左）
-        this->declare_parameter("axis_rt", 5); // RT (5): 旋回（右）
+        this->declare_parameter("axis_rt", 8); // RT (5): 旋回（右）
 
         // 最大速度（rpm）
         this->declare_parameter("max_rpm", 3000.0f);
