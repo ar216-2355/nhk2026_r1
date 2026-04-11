@@ -84,12 +84,32 @@ private:
 
         int max_axis = std::max({axis_vx_, axis_vy_, axis_lt_, axis_rt_});
         if (latest_joy_.axes.size() > (size_t)max_axis) {
-            // 前後左右の速度（左スティック）
-            vx = latest_joy_.axes[axis_vx_] * -1;
-            vy = latest_joy_.axes[axis_vy_];
+            // 前後左右の速度（左スティック）デッドゾーン(遊び)を設定して不要な回転を防ぐ
+            double raw_vx = latest_joy_.axes[axis_vx_] * -1; // ユーザー設定を反映
+            double raw_vy = latest_joy_.axes[axis_vy_];
+            
+            vx = std::abs(raw_vx) < 0.05 ? 0.0 : raw_vx;
+            vy = std::abs(raw_vy) < 0.05 ? 0.0 : raw_vy;
+            
+            // ROS 2のJoyでは、トリガーは「一度も触れていないと0.0、一度でも触れると1.0〜-1.0」という厄介な仕様があります。
+            // 片方のトリガーだけを引いた後の離した状態（1.0と0.0）で引き算するとオムニが勝手に回転してしまうため、未初期化対策を行います。
+            static bool lt_initialized = false;
+            static bool rt_initialized = false;
+            double lt_axis = latest_joy_.axes[axis_lt_];
+            double rt_axis = latest_joy_.axes[axis_rt_];
+            
+            if (lt_axis != 0.0) lt_initialized = true;
+            if (rt_axis != 0.0) rt_initialized = true;
+            
+            // 初期化済みの場合は0.0〜1.0の押し込み量に変換。未初期化の場合は0.0とする。
+            double lt_val = lt_initialized ? (1.0 - lt_axis) / 2.0 : 0.0;
+            double rt_val = rt_initialized ? (1.0 - rt_axis) / 2.0 : 0.0;
             
             // 例: LT(左トリガー)で左旋回(正)、RT(右トリガー)で右旋回(負)とする
-            omega = latest_joy_.axes[axis_lt_] - latest_joy_.axes[axis_rt_];
+            double raw_omega = lt_val - rt_val;
+            
+            // 旋回にも微小な入力に対するデッドゾーンを設ける
+            omega = std::abs(raw_omega) < 0.05 ? 0.0 : raw_omega;
         }
 
         // 4輪オムニホイールの運動学 (X-drive想定)
