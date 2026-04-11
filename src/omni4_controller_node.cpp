@@ -3,6 +3,7 @@
 #include <robomas_interfaces/msg/robomas_frame.hpp>
 #include <robomas_interfaces/msg/robomas_packet.hpp>
 #include <robomas_interfaces/msg/motor_command.hpp>
+#include <robomas_interfaces/msg/can_frame.hpp>
 #include <algorithm>
 #include <cmath>
 
@@ -41,6 +42,8 @@ public:
         this->declare_parameter("btn_contract", 5); // RB (5) -> 縮む
         this->declare_parameter("btn_grip_open", 0); // A (0) -> 開く
         this->declare_parameter("btn_grip_close", 1); // B (1) -> 閉じる(掴む)
+        this->declare_parameter("btn_can_x", 2); // X (2) -> CAN 送信 (0x301 ...)
+        this->declare_parameter("btn_can_y", 3); // Y (3) -> CAN 送信 (0x301 ...)
 
         // 最大速度（rpm）
         this->declare_parameter("max_rpm", 3000.0f);
@@ -71,6 +74,8 @@ public:
         btn_contract_ = this->get_parameter("btn_contract").as_int();
         btn_grip_open_ = this->get_parameter("btn_grip_open").as_int();
         btn_grip_close_ = this->get_parameter("btn_grip_close").as_int();
+        btn_can_x_ = this->get_parameter("btn_can_x").as_int();
+        btn_can_y_ = this->get_parameter("btn_can_y").as_int();
 
         max_rpm_ = this->get_parameter("max_rpm").as_double();
         lift_max_rpm_ = this->get_parameter("lift_max_rpm").as_double();
@@ -78,6 +83,7 @@ public:
         grip_max_rpm_ = this->get_parameter("grip_max_rpm").as_double();
 
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
+        can_pub_ = this->create_publisher<robomas_interfaces::msg::CanFrame>("/robomas/can_tx", 10);
         joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
             "/joy", 10, std::bind(&Omni4ControllerNode::joy_callback, this, std::placeholders::_1));
         fb_sub_ = this->create_subscription<robomas_interfaces::msg::RobomasFrame>(
@@ -94,13 +100,14 @@ private:
     int motor_id_lift_fl_, motor_id_lift_fr_, motor_id_lift_bl_, motor_id_lift_br_;
     int motor_id_extend_, motor_id_grip_;
     int axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_;
-    int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_;
+    int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_, btn_can_x_, btn_can_y_;
     double max_rpm_, lift_max_rpm_, extend_max_rpm_, grip_max_rpm_;
 
     sensor_msgs::msg::Joy latest_joy_;
     robomas_interfaces::msg::RobomasFrame current_fb_;
 
     rclcpp::Publisher<robomas_interfaces::msg::RobomasPacket>::SharedPtr cmd_pub_;
+    rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr can_pub_;
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
     rclcpp::Subscription<robomas_interfaces::msg::RobomasFrame>::SharedPtr fb_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -114,10 +121,39 @@ private:
     }
 
     void control_loop() {
+        if (latest_joy_.axes.empty()) return;
+
+        // --- CAN フレームの送信 (X / Y ボタン) ---
+        // 押しっぱなしで連続送信しないように、押した瞬間(エッジ)だけ送信する処理
+        int max_btn_can = std::max(btn_can_x_, btn_can_y_);
+        if (latest_joy_.buttons.size() > (size_t)max_btn_can) {
+            static bool prev_x = false;
+            static bool prev_y = false;
+            bool current_x = latest_joy_.buttons[btn_can_x_];
+            bool current_y = latest_joy_.buttons[btn_can_y_];
+
+            if (current_x && !prev_x) {
+                auto msg = robomas_interfaces::msg::CanFrame();
+                msg.id = 0x301;
+                msg.dlc = 8;
+                msg.data = {0x03, 0xF0, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+                can_pub_->publish(msg);
+                RCLCPP_INFO(this->get_logger(), "Sent CAN Frame (X button)");
+            }
+            if (current_y && !prev_y) {
+                auto msg = robomas_interfaces::msg::CanFrame();
+                msg.id = 0x301;
+                msg.dlc = 8;
+                msg.data = {0x0A, 0x00, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+                can_pub_->publish(msg);
+                RCLCPP_INFO(this->get_logger(), "Sent CAN Frame (Y button)");
+            }
+            prev_x = current_x;
+            prev_y = current_y;
+        }
+
         // DRIVEモード (system_state == 2) 時のみ実行する
         if (current_fb_.system_state != 2) return; 
-
-        if (latest_joy_.axes.empty()) return;
 
         double vx = 0.0;
         double vy = 0.0;
