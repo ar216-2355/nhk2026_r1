@@ -22,8 +22,8 @@ public:
         // ジョイスティックの軸設定
         this->declare_parameter("axis_vx", 1); // L_stick_y (1): 前後
         this->declare_parameter("axis_vy", 0); // L_stick_x (0): 左右
-        this->declare_parameter("axis_lt", 4); // LT (4): 旋回（左）
-        this->declare_parameter("axis_rt", 5); // RT (5): 旋回（右）
+        this->declare_parameter("axis_lt", 3); // LT (4): 旋回（左）
+        this->declare_parameter("axis_rt", 4); // RT (5): 旋回（右）
 
         // 最大速度（rpm）
         this->declare_parameter("max_rpm", 3000.0f);
@@ -116,8 +116,8 @@ private:
         // ※ ロボットのホイール配置・回転方向に応じて符合は適宜調整してください
         double v_fl = -vx + vy + omega;
         double v_fr = -vx - vy + omega;
-        double v_bl = vx - vy + omega;
-        double v_br = vx + vy + omega;
+        double v_bl = vx + vy + omega;
+        double v_br = vx - vy + omega;
 
         // コマンドが1.0を超える場合、比率を保ったまま正規化する
         double max_val = std::max({1.0, std::abs(v_fl), std::abs(v_fr), std::abs(v_bl), std::abs(v_br)});
