@@ -114,10 +114,10 @@ private:
 
         // 4輪オムニホイールの運動学 (X-drive想定)
         // ※ ロボットのホイール配置・回転方向に応じて符合は適宜調整してください
-        double v_fl = vx - vy - omega;
-        double v_fr = vx + vy + omega;
-        double v_bl = vx + vy - omega;
-        double v_br = vx - vy + omega;
+        double v_fl = -vx + vy + omega;
+        double v_fr = -vx - vy + omega;
+        double v_bl = vx - vy + omega;
+        double v_br = vx + vy + omega;
 
         // コマンドが1.0を超える場合、比率を保ったまま正規化する
         double max_val = std::max({1.0, std::abs(v_fl), std::abs(v_fr), std::abs(v_bl), std::abs(v_br)});
