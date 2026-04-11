@@ -22,7 +22,7 @@ public:
         // ジョイスティックの軸設定
         this->declare_parameter("axis_vx", 0); // L_stick_y (1): 前後
         this->declare_parameter("axis_vy", 1); // L_stick_x (0): 左右
-        this->declare_parameter("axis_lt", 4); // LT (4): 旋回（左）
+        this->declare_parameter("axis_lt", 2); // LT (大抵2): 旋回（左）
         this->declare_parameter("axis_rt", 5); // RT (5): 旋回（右）
 
         // 最大速度（rpm）
@@ -105,8 +105,8 @@ private:
             double lt_val = lt_initialized ? (1.0 - lt_axis) / 2.0 : 0.0;
             double rt_val = rt_initialized ? (1.0 - rt_axis) / 2.0 : 0.0;
             
-            // 例: LT(左トリガー)で左旋回(正)、RT(右トリガー)で右旋回(負)とする
-            double raw_omega = lt_val - rt_val;
+            // 旋回方向の反転: RTで右旋回、LTで左旋回になるように入れ替え
+            double raw_omega = rt_val - lt_val;
             
             // 旋回にも微小な入力に対するデッドゾーンを設ける
             omega = std::abs(raw_omega) < 0.05 ? 0.0 : raw_omega;
