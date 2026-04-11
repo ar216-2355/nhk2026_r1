@@ -38,8 +38,8 @@ public:
         motor_id_br_ = this->get_parameter("motor_id_br").as_int();
 
         axis_linear_x_ = this->get_parameter("axis_linear_x").as_int();
-        axis_linear_y_ = this->get_parameter("axis_linear_y").as_int();
-        axis_angular_z_ = this->get_parameter("axis_angular_z1").as_int() - this->get_parameter("axis_angular_z1").as_int();
+        axis_linear_y_ = this->get_parameter("axis_linear_y").as_int() * -1;
+        axis_angular_z_ = this->get_parameter("axis_angular_z1").as_int() - this->get_parameter("axis_angular_z2").as_int();
         max_rpm_ = this->get_parameter("max_rpm").as_double();
 
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
