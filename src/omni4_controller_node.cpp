@@ -177,10 +177,10 @@ private:
         // つまり、flとblには ` -lift_v * lift_max_rpm_ `
         // brとfrには ` lift_v * lift_max_rpm_ ` を与えれば完璧に同期します。
         
-        double target_lift_fl = -lift_v * lift_max_rpm_;
-        double target_lift_bl = -lift_v * lift_max_rpm_;
-        double target_lift_br = lift_v * lift_max_rpm_;
-        double target_lift_fr = lift_v * lift_max_rpm_;
+        double target_lift_fl = lift_v * lift_max_rpm_;
+        double target_lift_bl = lift_v * lift_max_rpm_;
+        double target_lift_br = -lift_v * lift_max_rpm_;
+        double target_lift_fr = -lift_v * lift_max_rpm_;
 
         add_motor_cmd(motor_id_lift_fl_, target_lift_fl);
         add_motor_cmd(motor_id_lift_bl_, target_lift_bl);
