@@ -85,16 +85,11 @@ private:
         int max_axis = std::max({axis_vx_, axis_vy_, axis_lt_, axis_rt_});
         if (latest_joy_.axes.size() > (size_t)max_axis) {
             // 前後左右の速度（左スティック）
-            vx = latest_joy_.axes[axis_vx_];
+            vx = latest_joy_.axes[axis_vx_] * -1;
             vy = latest_joy_.axes[axis_vy_];
             
-            // LT・RTは押していない状態で1、奥まで押し込むと-1になるため、
-            // 押し込み量(0.0 〜 1.0)に変換します。
-            double lt_val = (1.0 - latest_joy_.axes[axis_lt_]) / 2.0; 
-            double rt_val = (1.0 - latest_joy_.axes[axis_rt_]) / 2.0; 
-            
             // 例: LT(左トリガー)で左旋回(正)、RT(右トリガー)で右旋回(負)とする
-            omega = lt_val - rt_val;
+            omega = latest_joy_.axes[axis_lt_] - latest_joy_.axes[axis_rt_];
         }
 
         // 4輪オムニホイールの運動学 (X-drive想定)
