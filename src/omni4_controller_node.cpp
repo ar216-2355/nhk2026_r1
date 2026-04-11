@@ -15,18 +15,19 @@ public:
         // パラメータ設定
         // モーターID
         this->declare_parameter("motor_id_fl", 1);
-        this->declare_parameter("motor_id_fr", 2);
+        this->declare_parameter("motor_id_fr", 10);
         this->declare_parameter("motor_id_bl", 9);
-        this->declare_parameter("motor_id_br", 10);
+        this->declare_parameter("motor_id_br", 2);
         
         // ジョイスティックの軸設定
         // ROS 2のjoyメッセージでは一般に以下のような割り当てになります
         // axes[1]: 左スティック上下 (+: 上, -: 下) -> 前後(vx)
         // axes[0]: 左スティック左右 (+: 左, -: 右) -> 左右(vy)
         // axes[3]または[2]: 右スティック左右 (+: 左, -: 右) -> 旋回(omega)
-        this->declare_parameter("axis_linear_x", 1); 
-        this->declare_parameter("axis_linear_y", 0); 
-        this->declare_parameter("axis_angular_z", 3); 
+        this->declare_parameter("axis_linear_x", 0); 
+        this->declare_parameter("axis_linear_y", 1); 
+        this->declare_parameter("axis_angular_z1", 4); 
+        this->declare_parameter("axis_angular_z2", 5); 
 
         // 最大速度（rpm等）
         this->declare_parameter("max_rpm", 3000.0f);
@@ -38,7 +39,7 @@ public:
 
         axis_linear_x_ = this->get_parameter("axis_linear_x").as_int();
         axis_linear_y_ = this->get_parameter("axis_linear_y").as_int();
-        axis_angular_z_ = this->get_parameter("axis_angular_z").as_int();
+        axis_angular_z_ = this->get_parameter("axis_angular_z1").as_int() - this->get_parameter("axis_angular_z1").as_int();
         max_rpm_ = this->get_parameter("max_rpm").as_double();
 
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
