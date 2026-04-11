@@ -22,8 +22,8 @@ public:
         // ジョイスティックの軸設定
         this->declare_parameter("axis_vx", 0); // L_stick_y (1): 前後
         this->declare_parameter("axis_vy", 1); // L_stick_x (0): 左右
-        this->declare_parameter("axis_lt", 5); // LT (4): 旋回（左）
-        this->declare_parameter("axis_rt", 6); // RT (5): 旋回（右）
+        this->declare_parameter("axis_lt", 4); // LT (4): 旋回（左）
+        this->declare_parameter("axis_rt", 5); // RT (5): 旋回（右）
 
         // 最大速度（rpm）
         this->declare_parameter("max_rpm", 3000.0f);
@@ -85,7 +85,7 @@ private:
         int max_axis = std::max({axis_vx_, axis_vy_, axis_lt_, axis_rt_});
         if (latest_joy_.axes.size() > (size_t)max_axis) {
             // 前後左右の速度（左スティック）デッドゾーン(遊び)を設定して不要な回転を防ぐ
-            double raw_vx = latest_joy_.axes[axis_vx_] * -1; // ユーザー設定を反映
+            double raw_vx = latest_joy_.axes[axis_vx_];
             double raw_vy = latest_joy_.axes[axis_vy_];
             
             vx = std::abs(raw_vx) < 0.05 ? 0.0 : raw_vx;
