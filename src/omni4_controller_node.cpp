@@ -19,25 +19,40 @@ public:
         this->declare_parameter("motor_id_br", 9);
         this->declare_parameter("motor_id_fr", 10);
         
+        // 昇降用モーターID（ご提示の設定：fl=3, bl=4, br=11, fr=12）
+        this->declare_parameter("motor_id_lift_fl", 3);
+        this->declare_parameter("motor_id_lift_bl", 4);
+        this->declare_parameter("motor_id_lift_br", 11);
+        this->declare_parameter("motor_id_lift_fr", 12);
+        
         // ジョイスティックの軸設定
         this->declare_parameter("axis_vx", 0); // L_stick_y (1): 前後
         this->declare_parameter("axis_vy", 1); // L_stick_x (0): 左右
         this->declare_parameter("axis_lt", 2); // LT (大抵2): 旋回（左）
         this->declare_parameter("axis_rt", 5); // RT (5): 旋回（右）
+        this->declare_parameter("axis_lift", 4); // R_stick_y (通常4): 昇降
 
         // 最大速度（rpm）
         this->declare_parameter("max_rpm", 3000.0f);
+        this->declare_parameter("lift_max_rpm", 3000.0f);
 
         motor_id_fl_ = this->get_parameter("motor_id_fl").as_int();
         motor_id_fr_ = this->get_parameter("motor_id_fr").as_int();
         motor_id_bl_ = this->get_parameter("motor_id_bl").as_int();
         motor_id_br_ = this->get_parameter("motor_id_br").as_int();
 
+        motor_id_lift_fl_ = this->get_parameter("motor_id_lift_fl").as_int();
+        motor_id_lift_fr_ = this->get_parameter("motor_id_lift_fr").as_int();
+        motor_id_lift_bl_ = this->get_parameter("motor_id_lift_bl").as_int();
+        motor_id_lift_br_ = this->get_parameter("motor_id_lift_br").as_int();
+
         axis_vx_ = this->get_parameter("axis_vx").as_int();
         axis_vy_ = this->get_parameter("axis_vy").as_int();
         axis_lt_ = this->get_parameter("axis_lt").as_int();
         axis_rt_ = this->get_parameter("axis_rt").as_int();
+        axis_lift_ = this->get_parameter("axis_lift").as_int();
         max_rpm_ = this->get_parameter("max_rpm").as_double();
+        lift_max_rpm_ = this->get_parameter("lift_max_rpm").as_double();
 
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
         joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
@@ -53,8 +68,9 @@ public:
 
 private:
     int motor_id_fl_, motor_id_fr_, motor_id_bl_, motor_id_br_;
-    int axis_vx_, axis_vy_, axis_lt_, axis_rt_;
-    double max_rpm_;
+    int motor_id_lift_fl_, motor_id_lift_fr_, motor_id_lift_bl_, motor_id_lift_br_;
+    int axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_;
+    double max_rpm_, lift_max_rpm_;
 
     sensor_msgs::msg::Joy latest_joy_;
     robomas_interfaces::msg::RobomasFrame current_fb_;
@@ -81,8 +97,9 @@ private:
         double vx = 0.0;
         double vy = 0.0;
         double omega = 0.0;
+        double lift_v = 0.0;
 
-        int max_axis = std::max({axis_vx_, axis_vy_, axis_lt_, axis_rt_});
+        int max_axis = std::max({axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_});
         if (latest_joy_.axes.size() > (size_t)max_axis) {
             // 前後左右の速度（左スティック）デッドゾーン(遊び)を設定して不要な回転を防ぐ
             double raw_vx = latest_joy_.axes[axis_vx_];
@@ -110,6 +127,10 @@ private:
             
             // 旋回にも微小な入力に対するデッドゾーンを設ける
             omega = std::abs(raw_omega) < 0.05 ? 0.0 : raw_omega;
+
+            // 昇降軸の取得とデッドゾーン
+            double raw_lift = latest_joy_.axes[axis_lift_];
+            lift_v = std::abs(raw_lift) < 0.05 ? 0.0 : raw_lift;
         }
 
         // 4輪オムニホイールの運動学 (X-drive想定)
@@ -146,6 +167,25 @@ private:
         add_motor_cmd(motor_id_fr_, v_fr);
         add_motor_cmd(motor_id_bl_, v_bl);
         add_motor_cmd(motor_id_br_, v_br);
+
+        // --- 昇降用モーターの指令 ---
+        // 同じ速度で動かないと壊れるため、正規化はせず絶対の指令値を入れる
+        // 右スティック上が正（+）で動かす＝上昇、下が負（-）で下降
+        // 要件: fl・blが正転で下方向（下降）、br・frが正転で上方向（上昇）
+        // 上昇 (lift_v > 0) の場合 -> fl,bl は逆転(-)で上方向。br,fr は正転(+)で上方向。
+        // 下降 (lift_v < 0) の場合 -> fl,bl は正転(+)で下方向。br,fr は逆転(-)で下方向。
+        // つまり、flとblには ` -lift_v * lift_max_rpm_ `
+        // brとfrには ` lift_v * lift_max_rpm_ ` を与えれば完璧に同期します。
+        
+        double target_lift_fl = -lift_v * lift_max_rpm_;
+        double target_lift_bl = -lift_v * lift_max_rpm_;
+        double target_lift_br = lift_v * lift_max_rpm_;
+        double target_lift_fr = lift_v * lift_max_rpm_;
+
+        add_motor_cmd(motor_id_lift_fl_, target_lift_fl);
+        add_motor_cmd(motor_id_lift_bl_, target_lift_bl);
+        add_motor_cmd(motor_id_lift_br_, target_lift_br);
+        add_motor_cmd(motor_id_lift_fr_, target_lift_fr);
 
         // 送信
         if(!cmd_msg.motors.empty()){
