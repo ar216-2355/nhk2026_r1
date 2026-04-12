@@ -12,6 +12,7 @@ using namespace std::chrono_literals;
 enum class SystemMode {
     EMERGENCY,
     HOMING,
+    HOMING_ASCEND,
     DRIVE
 };
 
@@ -132,6 +133,7 @@ private:
 
     SystemMode sys_mode_;
     double target_lift_pos_fl_, target_lift_pos_bl_, target_lift_pos_br_, target_lift_pos_fr_;
+    double origin_lift_pos_fl_;
     bool is_homed_fl_ = false;
     bool is_homed_bl_ = false;
     bool is_homed_br_ = false;
@@ -337,16 +339,36 @@ private:
             if (is_homed_fl_ && is_homed_bl_ && is_homed_br_ && is_homed_fr_) {
                 RCLCPP_INFO(this->get_logger(), "HOMING COMPLETE! All 4 motors reached threshold.");
                 
-                // ホーミング完了後、底に押し付けられ続けないように少しだけ上に移動する
-                // 上昇方向： fl, bl は(+), br, fr は(-)
-                target_lift_pos_fl_ += homing_ascend_deg_;
-                target_lift_pos_bl_ += homing_ascend_deg_;
-                target_lift_pos_br_ -= homing_ascend_deg_;
-                target_lift_pos_fr_ -= homing_ascend_deg_;
-
-                sys_mode_ = SystemMode::DRIVE;
+                // 急激に目標値を変えると過大電流が流れるため、ここからHOMING_ASCEND状態で連続的に目標値を送る
+                origin_lift_pos_fl_ = target_lift_pos_fl_;
+                sys_mode_ = SystemMode::HOMING_ASCEND;
             }
         } 
+        else if (sys_mode_ == SystemMode::HOMING_ASCEND) {
+            // ホーミング完了後、少しだけ上に滑らかに移動する（位置制御で連続的に上げる）
+            // 速度は安全のため最大RPMの半分程度に設定
+            double step = (lift_max_rpm_ * 0.5) * 6.0 * 0.02; // 1周期あたりの上昇角度
+            
+            // どれだけ上がったか（flの現在目標値 - flの原点）を計算
+            // 上昇方向： fl, bl は(+), br, fr は(-) に目標値が進む
+            double diff = (origin_lift_pos_fl_ + homing_ascend_deg_) - target_lift_pos_fl_;
+
+            if (diff > 0.0) {
+                double move_step = std::min(step, diff);
+                target_lift_pos_fl_ += move_step;
+                target_lift_pos_bl_ += move_step;
+                target_lift_pos_br_ -= move_step;
+                target_lift_pos_fr_ -= move_step;
+            } else {
+                RCLCPP_INFO(this->get_logger(), "ASCEND COMPLETE! Ready for DRIVE.");
+                sys_mode_ = SystemMode::DRIVE;
+            }
+
+            add_motor_cmd(motor_id_lift_fl_, 2, target_lift_pos_fl_);
+            add_motor_cmd(motor_id_lift_bl_, 2, target_lift_pos_bl_);
+            add_motor_cmd(motor_id_lift_br_, 2, target_lift_pos_br_);
+            add_motor_cmd(motor_id_lift_fr_, 2, target_lift_pos_fr_);
+        }
         else if (sys_mode_ == SystemMode::DRIVE) {
             double raw_lift = latest_joy_.axes[axis_lift_];
             double lift_v = std::abs(raw_lift) < 0.05 ? 0.0 : raw_lift;
