@@ -283,11 +283,11 @@ private:
 
         // --- 昇降の処理 ---
         if (sys_mode_ == SystemMode::HOMING) {
-            // fl, blが正転(+), br, frが逆転(-)で下降する
-            add_motor_cmd(motor_id_lift_fl_, 1, homing_rpm_);
-            add_motor_cmd(motor_id_lift_bl_, 1, homing_rpm_);
-            add_motor_cmd(motor_id_lift_br_, 1, -homing_rpm_);
-            add_motor_cmd(motor_id_lift_fr_, 1, -homing_rpm_);
+            // 先ほどの逆設定（フル反転）: fl, blが逆転(-), br, frが正転(+)で下降する
+            add_motor_cmd(motor_id_lift_fl_, 1, -homing_rpm_);
+            add_motor_cmd(motor_id_lift_bl_, 1, -homing_rpm_);
+            add_motor_cmd(motor_id_lift_br_, 1, homing_rpm_);
+            add_motor_cmd(motor_id_lift_fr_, 1, homing_rpm_);
 
             // 電流値チェック
             double c_fl = std::abs(current_fb_.current[motor_id_lift_fl_ - 1]);
@@ -319,10 +319,9 @@ private:
             // degの変化量 = delta_rpm * 6.0 * 0.02 = delta_rpm * 0.12
             
             // 上昇させたい(lift_v > 0)の場合:
-            // fl, blは「逆転」で上昇 -> RPMはマイナスになる
-            // br, frは「正転」で上昇 -> RPMはプラスになる
-            double delta_rpm_fl_bl = -lift_v * lift_max_rpm_;
-            double delta_rpm_br_fr =  lift_v * lift_max_rpm_;
+            // モーターの回転方向を反転（先ほどの逆）にします
+            double delta_rpm_fl_bl = lift_v * lift_max_rpm_;
+            double delta_rpm_br_fr = -lift_v * lift_max_rpm_;
 
             target_lift_pos_fl_ += delta_rpm_fl_bl * 6.0 * 0.02;
             target_lift_pos_bl_ += delta_rpm_fl_bl * 6.0 * 0.02;
