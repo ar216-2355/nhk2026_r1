@@ -67,7 +67,7 @@ public:
 
         // ホーミング周りの設定
         this->declare_parameter("homing_rpm", 500.0f);       // ホーミング時の下降速度
-        this->declare_parameter("homing_current", 5000.0f);  // ホーミング完了とする電流閾値 (mA)
+        this->declare_parameter("homing_current", 1000.0f);  // ホーミング完了とする電流閾値 (mA) 1A=1000mA
 
         // パラメータの取り込み
         motor_id_fl_ = this->get_parameter("motor_id_fl").as_int();
@@ -130,6 +130,10 @@ private:
 
     SystemMode sys_mode_;
     double target_lift_pos_fl_, target_lift_pos_bl_, target_lift_pos_br_, target_lift_pos_fr_;
+    bool is_homed_fl_ = false;
+    bool is_homed_bl_ = false;
+    bool is_homed_br_ = false;
+    bool is_homed_fr_ = false;
 
     sensor_msgs::msg::Joy latest_joy_;
     robomas_interfaces::msg::RobomasFrame current_fb_;
@@ -179,7 +183,11 @@ private:
         } else if (is_start_pressed) {
             if (sys_mode_ == SystemMode::EMERGENCY || sys_mode_ == SystemMode::DRIVE) {
                 sys_mode_ = SystemMode::HOMING;
-                RCLCPP_INFO(this->get_logger(), "HOMING STARTED.");
+                is_homed_fl_ = false;
+                is_homed_bl_ = false;
+                is_homed_br_ = false;
+                is_homed_fr_ = false;
+                RCLCPP_INFO(this->get_logger(), "HOMING STARTED. Waiting for all 4 motors to reach 1A.");
             }
         }
 
@@ -283,29 +291,49 @@ private:
 
         // --- 昇降の処理 ---
         if (sys_mode_ == SystemMode::HOMING) {
-            // 先ほどの逆設定（フル反転）: fl, blが逆転(-), br, frが正転(+)で下降する
-            add_motor_cmd(motor_id_lift_fl_, 1, -homing_rpm_);
-            add_motor_cmd(motor_id_lift_bl_, 1, -homing_rpm_);
-            add_motor_cmd(motor_id_lift_br_, 1, homing_rpm_);
-            add_motor_cmd(motor_id_lift_fr_, 1, homing_rpm_);
-
             // 電流値チェック
             double c_fl = std::abs(current_fb_.current[motor_id_lift_fl_ - 1]);
             double c_bl = std::abs(current_fb_.current[motor_id_lift_bl_ - 1]);
             double c_br = std::abs(current_fb_.current[motor_id_lift_br_ - 1]);
             double c_fr = std::abs(current_fb_.current[motor_id_lift_fr_ - 1]);
 
-            if (c_fl > homing_current_ || c_bl > homing_current_ || 
-                c_br > homing_current_ || c_fr > homing_current_) {
-                
-                RCLCPP_INFO(this->get_logger(), "HOMING COMPLETE! Current threshold reached.");
-                
-                // オフセット（現在の角度）を記録して位置制御へ引き継ぐ
+            // 各モーターが1A(1000mA)を超えたら個別に原点を記録して停止する
+            if (!is_homed_fl_ && c_fl > homing_current_) {
                 target_lift_pos_fl_ = current_fb_.angle[motor_id_lift_fl_ - 1];
+                is_homed_fl_ = true;
+                RCLCPP_INFO(this->get_logger(), "FL Homed.");
+            }
+            if (!is_homed_bl_ && c_bl > homing_current_) {
                 target_lift_pos_bl_ = current_fb_.angle[motor_id_lift_bl_ - 1];
+                is_homed_bl_ = true;
+                RCLCPP_INFO(this->get_logger(), "BL Homed.");
+            }
+            if (!is_homed_br_ && c_br > homing_current_) {
                 target_lift_pos_br_ = current_fb_.angle[motor_id_lift_br_ - 1];
+                is_homed_br_ = true;
+                RCLCPP_INFO(this->get_logger(), "BR Homed.");
+            }
+            if (!is_homed_fr_ && c_fr > homing_current_) {
                 target_lift_pos_fr_ = current_fb_.angle[motor_id_lift_fr_ - 1];
+                is_homed_fr_ = true;
+                RCLCPP_INFO(this->get_logger(), "FR Homed.");
+            }
 
+            // ホーミングがまだ終わっていないモーターだけ速度指令を出す（終わったものは0を指示）
+            // fl, blが逆転(-), br, frが正転(+)で下降する
+            double cmd_fl = is_homed_fl_ ? 0.0 : -homing_rpm_;
+            double cmd_bl = is_homed_bl_ ? 0.0 : -homing_rpm_;
+            double cmd_br = is_homed_br_ ? 0.0 : homing_rpm_;
+            double cmd_fr = is_homed_fr_ ? 0.0 : homing_rpm_;
+
+            add_motor_cmd(motor_id_lift_fl_, 1, cmd_fl);
+            add_motor_cmd(motor_id_lift_bl_, 1, cmd_bl);
+            add_motor_cmd(motor_id_lift_br_, 1, cmd_br);
+            add_motor_cmd(motor_id_lift_fr_, 1, cmd_fr);
+
+            // 4つすべてのモーターがホーミング完了するまで待つ
+            if (is_homed_fl_ && is_homed_bl_ && is_homed_br_ && is_homed_fr_) {
+                RCLCPP_INFO(this->get_logger(), "HOMING COMPLETE! All 4 motors reached threshold.");
                 sys_mode_ = SystemMode::DRIVE;
             }
         } 
