@@ -68,6 +68,7 @@ public:
         // ホーミング周りの設定
         this->declare_parameter("homing_rpm", 500.0f);       // ホーミング時の下降速度
         this->declare_parameter("homing_current", 1000.0f);  // ホーミング完了とする電流閾値 (mA) 1A=1000mA
+        this->declare_parameter("homing_ascend_deg", 1000.0f); // ホーミング完了後に上昇する距離(度)
 
         // パラメータの取り込み
         motor_id_fl_ = this->get_parameter("motor_id_fl").as_int();
@@ -105,6 +106,7 @@ public:
         
         homing_rpm_ = this->get_parameter("homing_rpm").as_double();
         homing_current_ = this->get_parameter("homing_current").as_double();
+        homing_ascend_deg_ = this->get_parameter("homing_ascend_deg").as_double();
 
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
         can_pub_ = this->create_publisher<robomas_interfaces::msg::CanFrame>("/robomas/can_tx", 10);
@@ -126,7 +128,7 @@ private:
     int motor_id_extend_, motor_id_grip_;
     int axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_;
     int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_, btn_can_x_, btn_can_y_, btn_start_, btn_back_;
-    double max_rpm_, lift_max_rpm_, extend_max_rpm_, grip_max_rpm_, homing_rpm_, homing_current_;
+    double max_rpm_, lift_max_rpm_, extend_max_rpm_, grip_max_rpm_, homing_rpm_, homing_current_, homing_ascend_deg_;
 
     SystemMode sys_mode_;
     double target_lift_pos_fl_, target_lift_pos_bl_, target_lift_pos_br_, target_lift_pos_fr_;
@@ -334,6 +336,14 @@ private:
             // 4つすべてのモーターがホーミング完了するまで待つ
             if (is_homed_fl_ && is_homed_bl_ && is_homed_br_ && is_homed_fr_) {
                 RCLCPP_INFO(this->get_logger(), "HOMING COMPLETE! All 4 motors reached threshold.");
+                
+                // ホーミング完了後、底に押し付けられ続けないように少しだけ上に移動する
+                // 上昇方向： fl, bl は(+), br, fr は(-)
+                target_lift_pos_fl_ += homing_ascend_deg_;
+                target_lift_pos_bl_ += homing_ascend_deg_;
+                target_lift_pos_br_ -= homing_ascend_deg_;
+                target_lift_pos_fr_ -= homing_ascend_deg_;
+
                 sys_mode_ = SystemMode::DRIVE;
             }
         } 
