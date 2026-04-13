@@ -178,6 +178,12 @@ private:
             cmd_msg.motors.push_back(cmd);
         };
 
+        // ハードウェアがDRIVE(2)以外なら、ソフトウェア状態も強制的にEMERGENCYにする
+        if (current_fb_.system_state != 2 && sys_mode_ != SystemMode::EMERGENCY) {
+            sys_mode_ = SystemMode::EMERGENCY;
+            RCLCPP_WARN(this->get_logger(), "Hardware dropped out of DRIVE mode. Forcing internal state to EMERGENCY.");
+        }
+
         // --- EMERGENCY / START / BACK ボタン判定 ---
         static bool prev_start = false;
         bool current_start = latest_joy_.buttons[btn_start_];
@@ -191,7 +197,7 @@ private:
                 sys_mode_ = SystemMode::EMERGENCY;
                 RCLCPP_WARN(this->get_logger(), "EMERGENCY STOP (BACK Pressed). All motors currently disabled.");
             }
-        } else if (is_start_pressed) {
+        } else if (is_start_pressed && current_fb_.system_state == 2) {
             // STARTを押した時にCANフレームも複数送る
             auto msg1 = robomas_interfaces::msg::CanFrame();
             msg1.id = 0x301; msg1.dlc = 8; msg1.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
@@ -410,7 +416,7 @@ private:
         else if (sys_mode_ == SystemMode::HOMING_ASCEND) {
             // ホーミング完了後、少しだけ上に滑らかに移動する（位置制御で連続的に上げる）
             // 速度は安全のため最大RPMの半分程度に設定
-            double step = (lift_max_rpm_ * 0.1) * 6.0 * 0.02; // 1周期あたりの上昇角度
+            double step = (lift_max_rpm_ * 0.03) * 6.0 * 0.02; // 1周期あたりの上昇角度
             
             // どれだけ上がったか（flの現在目標値 - flの原点）を計算
             // 上昇方向： fl, bl は(+), br, fr は(-) に目標値が進む
