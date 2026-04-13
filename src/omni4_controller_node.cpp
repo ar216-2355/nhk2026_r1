@@ -251,7 +251,7 @@ private:
             can_pub_->publish(msg2);
 
             auto msg3 = robomas_interfaces::msg::CanFrame();
-            msg3.id = 0x110; msg3.dlc = 1; msg3.data = {0x04};
+            msg3.id = 0x160; msg3.dlc = 1; msg3.data = {0x04};
             can_pub_->publish(msg3);
 
             if (sys_mode_ == SystemMode::EMERGENCY || sys_mode_ == SystemMode::DRIVE) {
@@ -339,17 +339,17 @@ private:
         }
         if (current_d_right && !prev_d_right) {
             auto msg = robomas_interfaces::msg::CanFrame();
-            msg.id = 0x111; msg.dlc = 4; msg.data = {0x3e, 0x80, 0x00, 0x00};
+            msg.id = 0x161; msg.dlc = 4; msg.data = {0x3e, 0x80, 0x00, 0x00};
             can_pub_->publish(msg);
         }
         if (current_d_left && !prev_d_left) {
             auto msg = robomas_interfaces::msg::CanFrame();
-            msg.id = 0x111; msg.dlc = 4; msg.data = {0xbe, 0x80, 0x00, 0x00};
+            msg.id = 0x161; msg.dlc = 4; msg.data = {0xbe, 0x80, 0x00, 0x00};
             can_pub_->publish(msg);
         }
         if (current_home && !prev_home) {
             auto msg = robomas_interfaces::msg::CanFrame();
-            msg.id = 0x111; msg.dlc = 4; msg.data = {0x00, 0x00, 0x00, 0x00};
+            msg.id = 0x161; msg.dlc = 4; msg.data = {0x00, 0x00, 0x00, 0x00};
             can_pub_->publish(msg);
         }
 
