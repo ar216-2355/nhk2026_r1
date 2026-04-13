@@ -23,7 +23,9 @@ public:
                             target_lift_pos_fl_(0.0),
                             target_lift_pos_bl_(0.0),
                             target_lift_pos_br_(0.0),
-                            target_lift_pos_fr_(0.0) {
+                            target_lift_pos_fr_(0.0),
+                            target_motor13_home_pos_(0.0),
+                            target_motor13_drive_pos_(-60000.0) {
         
         // --- モーターID（ご提示の設定：fl=1, bl=2, br=9, fr=10） ---
         this->declare_parameter("motor_id_fl", 1);
@@ -36,6 +38,9 @@ public:
         this->declare_parameter("motor_id_lift_bl", 4);
         this->declare_parameter("motor_id_lift_br", 11);
         this->declare_parameter("motor_id_lift_fr", 12);
+
+        // 13番モーター
+        this->declare_parameter("motor_id_13", 13);
         
         // 押し出し・把持用モーターID
         this->declare_parameter("motor_id_extend", 5);
@@ -85,6 +90,7 @@ public:
         motor_id_lift_fr_ = this->get_parameter("motor_id_lift_fr").as_int();
         motor_id_lift_bl_ = this->get_parameter("motor_id_lift_bl").as_int();
         motor_id_lift_br_ = this->get_parameter("motor_id_lift_br").as_int();
+        motor_id_13_ = this->get_parameter("motor_id_13").as_int();
 
         motor_id_extend_ = this->get_parameter("motor_id_extend").as_int();
         motor_id_grip_ = this->get_parameter("motor_id_grip").as_int();
@@ -135,6 +141,7 @@ public:
 private:
     int motor_id_fl_, motor_id_fr_, motor_id_bl_, motor_id_br_;
     int motor_id_lift_fl_, motor_id_lift_fr_, motor_id_lift_bl_, motor_id_lift_br_;
+    int motor_id_13_;
     int motor_id_extend_, motor_id_grip_;
     int axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_, axis_dpad_x_, axis_dpad_y_;
     int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_, btn_can_x_, btn_can_y_, btn_start_, btn_back_, btn_home_;
@@ -143,15 +150,20 @@ private:
 
     SystemMode sys_mode_;
     double target_lift_pos_fl_, target_lift_pos_bl_, target_lift_pos_br_, target_lift_pos_fr_;
+    double target_motor13_home_pos_;
+    double target_motor13_drive_pos_;
     double origin_lift_pos_fl_;
     double origin_lift_pos_bl_;
     double origin_lift_pos_br_;
     double origin_lift_pos_fr_;
+    double origin_motor13_pos_;
     rclcpp::Time homing_start_time_;
     bool is_homed_fl_ = false;
     bool is_homed_bl_ = false;
     bool is_homed_br_ = false;
     bool is_homed_fr_ = false;
+    bool is_homed_motor13_ = false;
+    bool motor13_drive_high_ = false;
 
     sensor_msgs::msg::Joy latest_joy_;
     robomas_interfaces::msg::RobomasFrame current_fb_;
@@ -230,7 +242,8 @@ private:
                 is_homed_bl_ = false;
                 is_homed_br_ = false;
                 is_homed_fr_ = false;
-                RCLCPP_INFO(this->get_logger(), "HOMING STARTED. Waiting for all 4 motors to reach 1A.");
+                is_homed_motor13_ = false;
+                RCLCPP_INFO(this->get_logger(), "HOMING STARTED. Waiting for 4 lift motors and motor 13 to reach 1A.");
             }
         }
 
@@ -245,6 +258,7 @@ private:
             add_motor_cmd(motor_id_lift_bl_, 0, 0.0f);
             add_motor_cmd(motor_id_lift_br_, 0, 0.0f);
             add_motor_cmd(motor_id_lift_fr_, 0, 0.0f);
+            add_motor_cmd(motor_id_13_, 0, 0.0f);
             add_motor_cmd(motor_id_extend_, 0, 0.0f);
             add_motor_cmd(motor_id_grip_, 0, 0.0f);
             cmd_pub_->publish(cmd_msg);
@@ -369,12 +383,20 @@ private:
             add_motor_cmd(motor_id_extend_, 1, target_extend);
 
             double target_grip = 0.0;
-            if (latest_joy_.buttons[btn_grip_open_]) {
-                target_grip = grip_max_rpm_;
-            } else if (latest_joy_.buttons[btn_grip_close_]) {
+            if (latest_joy_.buttons[btn_grip_close_]) {
                 target_grip = -grip_max_rpm_;
             }
             add_motor_cmd(motor_id_grip_, 1, target_grip);
+
+            static bool prev_a = false;
+            bool current_a = latest_joy_.buttons[btn_grip_open_];
+            if (current_a && !prev_a) {
+                motor13_drive_high_ = !motor13_drive_high_;
+                target_motor13_drive_pos_ = motor13_drive_high_ ? 1000.0 : -60000.0;
+                add_motor_cmd(motor_id_13_, 2, target_motor13_drive_pos_);
+                RCLCPP_INFO(this->get_logger(), "Motor 13 target toggled to %.1f", target_motor13_drive_pos_);
+            }
+            prev_a = current_a;
         } else {
             add_motor_cmd(motor_id_fl_, 1, 0.0f);
             add_motor_cmd(motor_id_fr_, 1, 0.0f);
@@ -391,6 +413,7 @@ private:
             double c_bl = std::abs(current_fb_.current[motor_id_lift_bl_ - 1]);
             double c_br = std::abs(current_fb_.current[motor_id_lift_br_ - 1]);
             double c_fr = std::abs(current_fb_.current[motor_id_lift_fr_ - 1]);
+            double c_m13 = std::abs(current_fb_.current[motor_id_13_ - 1]);
 
             double homing_elapsed = (this->now() - homing_start_time_).seconds();
 
@@ -415,6 +438,11 @@ private:
                 is_homed_fr_ = true;
                 RCLCPP_INFO(this->get_logger(), "FR Homed.");
             }
+            if (!is_homed_motor13_ && c_m13 > homing_current_) {
+                target_motor13_home_pos_ = current_fb_.angle[motor_id_13_ - 1];
+                is_homed_motor13_ = true;
+                RCLCPP_INFO(this->get_logger(), "M13 Homed.");
+            }
 
             if (homing_elapsed > homing_timeout_sec_) {
                 if (!is_homed_fl_) {
@@ -433,6 +461,10 @@ private:
                     target_lift_pos_fr_ = current_fb_.angle[motor_id_lift_fr_ - 1];
                     is_homed_fr_ = true;
                 }
+                if (!is_homed_motor13_) {
+                    target_motor13_home_pos_ = current_fb_.angle[motor_id_13_ - 1];
+                    is_homed_motor13_ = true;
+                }
                 RCLCPP_WARN(this->get_logger(), "HOMING timeout reached (%.2fs). Forcing transition to ASCEND.", homing_elapsed);
             }
 
@@ -442,21 +474,24 @@ private:
             double cmd_bl = is_homed_bl_ ? 0.0 : -homing_rpm_;
             double cmd_br = is_homed_br_ ? 0.0 : homing_rpm_;
             double cmd_fr = is_homed_fr_ ? 0.0 : homing_rpm_;
+            double cmd_m13 = is_homed_motor13_ ? 0.0 : homing_rpm_;
 
             add_motor_cmd(motor_id_lift_fl_, 1, cmd_fl);
             add_motor_cmd(motor_id_lift_bl_, 1, cmd_bl);
             add_motor_cmd(motor_id_lift_br_, 1, cmd_br);
             add_motor_cmd(motor_id_lift_fr_, 1, cmd_fr);
+            add_motor_cmd(motor_id_13_, 1, cmd_m13);
 
             // 4つすべてのモーターがホーミング完了するまで待つ
-            if (is_homed_fl_ && is_homed_bl_ && is_homed_br_ && is_homed_fr_) {
-                RCLCPP_INFO(this->get_logger(), "HOMING COMPLETE! All 4 motors reached threshold.");
+            if (is_homed_fl_ && is_homed_bl_ && is_homed_br_ && is_homed_fr_ && is_homed_motor13_) {
+                RCLCPP_INFO(this->get_logger(), "HOMING COMPLETE! All lift motors and motor 13 reached threshold.");
                 
                 // 急激に目標値を変えると過大電流が流れるため、ここからHOMING_ASCEND状態で連続的に目標値を送る
                 origin_lift_pos_fl_ = target_lift_pos_fl_;
                 origin_lift_pos_bl_ = target_lift_pos_bl_;
                 origin_lift_pos_br_ = target_lift_pos_br_;
                 origin_lift_pos_fr_ = target_lift_pos_fr_;
+                origin_motor13_pos_ = target_motor13_home_pos_;
                 sys_mode_ = SystemMode::HOMING_ASCEND;
             }
         } 
@@ -471,7 +506,8 @@ private:
             double rem_bl = (origin_lift_pos_bl_ + homing_ascend_deg_) - target_lift_pos_bl_;
             double rem_br = target_lift_pos_br_ - (origin_lift_pos_br_ - homing_ascend_deg_);
             double rem_fr = target_lift_pos_fr_ - (origin_lift_pos_fr_ - homing_ascend_deg_);
-            double diff = std::min({rem_fl, rem_bl, rem_br, rem_fr});
+            double rem_m13 = target_motor13_home_pos_ - (origin_motor13_pos_ - homing_ascend_deg_);
+            double diff = std::min({rem_fl, rem_bl, rem_br, rem_fr, rem_m13});
 
             if (diff > 0.0) {
                 double move_step = std::min(step, diff);
@@ -479,8 +515,11 @@ private:
                 target_lift_pos_bl_ += move_step;
                 target_lift_pos_br_ -= move_step;
                 target_lift_pos_fr_ -= move_step;
+                target_motor13_home_pos_ -= move_step;
             } else {
                 RCLCPP_INFO(this->get_logger(), "ASCEND COMPLETE! Ready for DRIVE.");
+                target_motor13_drive_pos_ = -60000.0;
+                motor13_drive_high_ = false;
                 sys_mode_ = SystemMode::DRIVE;
             }
 
@@ -488,6 +527,7 @@ private:
             add_motor_cmd(motor_id_lift_bl_, 2, target_lift_pos_bl_);
             add_motor_cmd(motor_id_lift_br_, 2, target_lift_pos_br_);
             add_motor_cmd(motor_id_lift_fr_, 2, target_lift_pos_fr_);
+            add_motor_cmd(motor_id_13_, 2, target_motor13_home_pos_);
         }
         else if (sys_mode_ == SystemMode::DRIVE) {
             double raw_lift = latest_joy_.axes[axis_lift_];
