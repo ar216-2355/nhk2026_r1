@@ -82,7 +82,7 @@ public:
         this->declare_parameter("homing_current_lift_bl", 1000.0f);
         this->declare_parameter("homing_current_lift_br", 1000.0f);
         this->declare_parameter("homing_current_lift_fr", 1000.0f);
-        this->declare_parameter("homing_current_motor5", 1000.0f);   // 2A
+        this->declare_parameter("homing_current_motor5", 2000.0f);   // 2A
         this->declare_parameter("homing_current_motor13", 2000.0f);  // 2A
         this->declare_parameter("homing_ascend_deg", 1000.0f); // ホーミング完了後に上昇する距離(度)
         this->declare_parameter("homing_timeout_sec", 8.0f); // ホーミング最大待機時間(秒)
