@@ -86,6 +86,7 @@ public:
         this->declare_parameter("homing_current_motor13", 2000.0f);  // 2A
         this->declare_parameter("homing_ascend_deg", 1000.0f); // ホーミング完了後に上昇する距離(度)
         this->declare_parameter("homing_timeout_sec", 8.0f); // ホーミング最大待機時間(秒)
+        this->declare_parameter("drive_state_miss_limit", 20); // DRIVE不一致を許容する周期数(10ms周期)
 
         // パラメータの取り込み
         motor_id_fl_ = this->get_parameter("motor_id_fl").as_int();
@@ -134,6 +135,7 @@ public:
         homing_current_motor13_ = this->get_parameter("homing_current_motor13").as_double();
         homing_ascend_deg_ = this->get_parameter("homing_ascend_deg").as_double();
         homing_timeout_sec_ = this->get_parameter("homing_timeout_sec").as_double();
+        drive_state_miss_limit_ = this->get_parameter("drive_state_miss_limit").as_int();
         homing_start_time_ = this->now();
 
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
@@ -161,6 +163,8 @@ private:
     double homing_current_lift_fl_, homing_current_lift_bl_, homing_current_lift_br_, homing_current_lift_fr_;
     double homing_current_motor5_, homing_current_motor13_;
     double homing_timeout_sec_;
+    int drive_state_miss_limit_;
+    int drive_state_miss_count_ = 0;
 
     SystemMode sys_mode_;
     double target_lift_pos_fl_, target_lift_pos_bl_, target_lift_pos_br_, target_lift_pos_fr_;
@@ -217,11 +221,22 @@ private:
             cmd_msg.motors.push_back(cmd);
         };
 
-        // DRIVE中にハードウェアがDRIVE(2)から外れた時のみ、EMERGENCYへ落とす
-        // HOMING/HOMING_ASCENDはsystem_stateに依存せず継続させる
-        if (current_fb_.system_state != 2 && sys_mode_ == SystemMode::DRIVE) {
-            sys_mode_ = SystemMode::EMERGENCY;
-            RCLCPP_WARN(this->get_logger(), "Hardware dropped out of DRIVE mode. Forcing internal state to EMERGENCY.");
+        // DRIVE状態の不一致は瞬断を許容する（READY<->DRIVE遷移の揺れ対策）
+        if (sys_mode_ == SystemMode::DRIVE) {
+            if (current_fb_.system_state == 2) {
+                drive_state_miss_count_ = 0;
+            } else {
+                drive_state_miss_count_++;
+                if (drive_state_miss_count_ >= drive_state_miss_limit_) {
+                    sys_mode_ = SystemMode::EMERGENCY;
+                    drive_state_miss_count_ = 0;
+                    RCLCPP_WARN(this->get_logger(),
+                        "Hardware not in DRIVE for %d cycles. Forcing internal state to EMERGENCY.",
+                        drive_state_miss_limit_);
+                }
+            }
+        } else {
+            drive_state_miss_count_ = 0;
         }
 
         // --- EMERGENCY / START / BACK ボタン判定 ---
@@ -551,6 +566,7 @@ private:
                 target_motor5_drive_pos_ = target_motor5_home_pos_;
                 motor13_drive_high_ = false;
                 target_motor13_drive_pos_ = target_motor13_home_pos_;
+                drive_state_miss_count_ = 0;
                 sys_mode_ = SystemMode::DRIVE;
             }
 
