@@ -73,6 +73,7 @@ public:
         this->declare_parameter("homing_rpm", 500.0f);       // ホーミング時の下降速度
         this->declare_parameter("homing_current", 1000.0f);  // ホーミング完了とする電流閾値 (mA) 1A=1000mA
         this->declare_parameter("homing_ascend_deg", 1000.0f); // ホーミング完了後に上昇する距離(度)
+        this->declare_parameter("homing_timeout_sec", 8.0f); // ホーミング最大待機時間(秒)
 
         // パラメータの取り込み
         motor_id_fl_ = this->get_parameter("motor_id_fl").as_int();
@@ -114,6 +115,8 @@ public:
         homing_rpm_ = this->get_parameter("homing_rpm").as_double();
         homing_current_ = this->get_parameter("homing_current").as_double();
         homing_ascend_deg_ = this->get_parameter("homing_ascend_deg").as_double();
+        homing_timeout_sec_ = this->get_parameter("homing_timeout_sec").as_double();
+        homing_start_time_ = this->now();
 
         cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
         can_pub_ = this->create_publisher<robomas_interfaces::msg::CanFrame>("/robomas/can_tx", 10);
@@ -136,10 +139,15 @@ private:
     int axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_, axis_dpad_x_, axis_dpad_y_;
     int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_, btn_can_x_, btn_can_y_, btn_start_, btn_back_, btn_home_;
     double max_rpm_, lift_max_rpm_, extend_max_rpm_, grip_max_rpm_, homing_rpm_, homing_current_, homing_ascend_deg_;
+    double homing_timeout_sec_;
 
     SystemMode sys_mode_;
     double target_lift_pos_fl_, target_lift_pos_bl_, target_lift_pos_br_, target_lift_pos_fr_;
     double origin_lift_pos_fl_;
+    double origin_lift_pos_bl_;
+    double origin_lift_pos_br_;
+    double origin_lift_pos_fr_;
+    rclcpp::Time homing_start_time_;
     bool is_homed_fl_ = false;
     bool is_homed_bl_ = false;
     bool is_homed_br_ = false;
@@ -198,7 +206,10 @@ private:
                 sys_mode_ = SystemMode::EMERGENCY;
                 RCLCPP_WARN(this->get_logger(), "EMERGENCY STOP (BACK Pressed). All motors currently disabled.");
             }
-        } else if (is_start_pressed && current_fb_.system_state == 2) {
+        } else if (is_start_pressed) {
+            if (current_fb_.system_state != 2) {
+                RCLCPP_WARN(this->get_logger(), "START pressed while system_state=%d (not DRIVE). Sending CAN init and starting HOMING anyway.", current_fb_.system_state);
+            }
             // STARTを押した時にCANフレームも複数送る
             auto msg1 = robomas_interfaces::msg::CanFrame();
             msg1.id = 0x301; msg1.dlc = 8; msg1.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
@@ -214,6 +225,7 @@ private:
 
             if (sys_mode_ == SystemMode::EMERGENCY || sys_mode_ == SystemMode::DRIVE) {
                 sys_mode_ = SystemMode::HOMING;
+                homing_start_time_ = this->now();
                 is_homed_fl_ = false;
                 is_homed_bl_ = false;
                 is_homed_br_ = false;
@@ -380,6 +392,8 @@ private:
             double c_br = std::abs(current_fb_.current[motor_id_lift_br_ - 1]);
             double c_fr = std::abs(current_fb_.current[motor_id_lift_fr_ - 1]);
 
+            double homing_elapsed = (this->now() - homing_start_time_).seconds();
+
             // 各モーターが1A(1000mA)を超えたら個別に原点を記録して停止する
             if (!is_homed_fl_ && c_fl > homing_current_) {
                 target_lift_pos_fl_ = current_fb_.angle[motor_id_lift_fl_ - 1];
@@ -402,6 +416,26 @@ private:
                 RCLCPP_INFO(this->get_logger(), "FR Homed.");
             }
 
+            if (homing_elapsed > homing_timeout_sec_) {
+                if (!is_homed_fl_) {
+                    target_lift_pos_fl_ = current_fb_.angle[motor_id_lift_fl_ - 1];
+                    is_homed_fl_ = true;
+                }
+                if (!is_homed_bl_) {
+                    target_lift_pos_bl_ = current_fb_.angle[motor_id_lift_bl_ - 1];
+                    is_homed_bl_ = true;
+                }
+                if (!is_homed_br_) {
+                    target_lift_pos_br_ = current_fb_.angle[motor_id_lift_br_ - 1];
+                    is_homed_br_ = true;
+                }
+                if (!is_homed_fr_) {
+                    target_lift_pos_fr_ = current_fb_.angle[motor_id_lift_fr_ - 1];
+                    is_homed_fr_ = true;
+                }
+                RCLCPP_WARN(this->get_logger(), "HOMING timeout reached (%.2fs). Forcing transition to ASCEND.", homing_elapsed);
+            }
+
             // ホーミングがまだ終わっていないモーターだけ速度指令を出す（終わったものは0を指示）
             // fl, blが逆転(-), br, frが正転(+)で下降する
             double cmd_fl = is_homed_fl_ ? 0.0 : -homing_rpm_;
@@ -420,6 +454,9 @@ private:
                 
                 // 急激に目標値を変えると過大電流が流れるため、ここからHOMING_ASCEND状態で連続的に目標値を送る
                 origin_lift_pos_fl_ = target_lift_pos_fl_;
+                origin_lift_pos_bl_ = target_lift_pos_bl_;
+                origin_lift_pos_br_ = target_lift_pos_br_;
+                origin_lift_pos_fr_ = target_lift_pos_fr_;
                 sys_mode_ = SystemMode::HOMING_ASCEND;
             }
         } 
@@ -428,9 +465,13 @@ private:
             // 速度は安全のため最大RPMの半分程度に設定
             double step = (lift_max_rpm_ * 0.03) * 6.0 * 0.02; // 1周期あたりの上昇角度
             
-            // どれだけ上がったか（flの現在目標値 - flの原点）を計算
             // 上昇方向： fl, bl は(+), br, fr は(-) に目標値が進む
-            double diff = (origin_lift_pos_fl_ + homing_ascend_deg_) - target_lift_pos_fl_;
+            // 4輪の残量の最小値を使って同じステップで進める
+            double rem_fl = (origin_lift_pos_fl_ + homing_ascend_deg_) - target_lift_pos_fl_;
+            double rem_bl = (origin_lift_pos_bl_ + homing_ascend_deg_) - target_lift_pos_bl_;
+            double rem_br = target_lift_pos_br_ - (origin_lift_pos_br_ - homing_ascend_deg_);
+            double rem_fr = target_lift_pos_fr_ - (origin_lift_pos_fr_ - homing_ascend_deg_);
+            double diff = std::min({rem_fl, rem_bl, rem_br, rem_fr});
 
             if (diff > 0.0) {
                 double move_step = std::min(step, diff);
