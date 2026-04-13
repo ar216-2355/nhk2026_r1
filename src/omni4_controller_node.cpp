@@ -117,7 +117,7 @@ public:
             "/robomas/feedback", 10, std::bind(&Omni4ControllerNode::feedback_callback, this, std::placeholders::_1));
 
         // タイマー 20ms = 50Hz
-        timer_ = this->create_wall_timer(20ms, std::bind(&Omni4ControllerNode::control_loop, this));
+        timer_ = this->create_wall_timer(10ms, std::bind(&Omni4ControllerNode::control_loop, this));
         
         RCLCPP_INFO(this->get_logger(), "Omni 4-Wheel Controller Node Started.");
         RCLCPP_INFO(this->get_logger(), "Current Mode: EMERGENCY. Press START to Home.");
@@ -230,7 +230,7 @@ private:
             auto msg = robomas_interfaces::msg::CanFrame();
             msg.id = 0x301;
             msg.dlc = 8;
-            msg.data = {0x0A, 0x00, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            msg.data = {0x0A, 0xBC, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
             can_pub_->publish(msg);
             RCLCPP_INFO(this->get_logger(), "Sent CAN Frame (Y button)");
         }
@@ -347,7 +347,7 @@ private:
         else if (sys_mode_ == SystemMode::HOMING_ASCEND) {
             // ホーミング完了後、少しだけ上に滑らかに移動する（位置制御で連続的に上げる）
             // 速度は安全のため最大RPMの半分程度に設定
-            double step = (lift_max_rpm_ * 0.5) * 6.0 * 0.02; // 1周期あたりの上昇角度
+            double step = (lift_max_rpm_ * 0.1) * 6.0 * 0.02; // 1周期あたりの上昇角度
             
             // どれだけ上がったか（flの現在目標値 - flの原点）を計算
             // 上昇方向： fl, bl は(+), br, fr は(-) に目標値が進む
