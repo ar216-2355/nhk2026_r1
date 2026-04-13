@@ -25,7 +25,7 @@ public:
                             target_lift_pos_br_(0.0),
                             target_lift_pos_fr_(0.0),
                             target_motor13_home_pos_(0.0),
-                            target_motor13_drive_pos_(-60000.0) {
+                            target_motor13_drive_pos_(0.0) {
         
         // --- モーターID（ご提示の設定：fl=1, bl=2, br=9, fr=10） ---
         this->declare_parameter("motor_id_fl", 1);
@@ -518,8 +518,8 @@ private:
                 target_motor13_home_pos_ -= move_step;
             } else {
                 RCLCPP_INFO(this->get_logger(), "ASCEND COMPLETE! Ready for DRIVE.");
-                target_motor13_drive_pos_ = -60000.0;
                 motor13_drive_high_ = false;
+                target_motor13_drive_pos_ = target_motor13_home_pos_;
                 sys_mode_ = SystemMode::DRIVE;
             }
 
@@ -555,6 +555,25 @@ private:
             add_motor_cmd(motor_id_lift_bl_, 2, target_lift_pos_bl_);
             add_motor_cmd(motor_id_lift_br_, 2, target_lift_pos_br_);
             add_motor_cmd(motor_id_lift_fr_, 2, target_lift_pos_fr_);
+
+            static bool prev_a_drive = false;
+            bool current_a_drive = latest_joy_.buttons[btn_grip_open_];
+            if (current_a_drive && !prev_a_drive) {
+                motor13_drive_high_ = !motor13_drive_high_;
+                RCLCPP_INFO(this->get_logger(), "Motor 13 target toggled to %s", motor13_drive_high_ ? "-60000" : "-1000");
+            }
+            prev_a_drive = current_a_drive;
+
+            double motor13_goal_abs = origin_motor13_pos_ + (motor13_drive_high_ ? -60000.0 : -1000.0);
+            double motor13_step = (lift_max_rpm_ * 0.03) * 6.0 * 0.02;
+            double motor13_diff = motor13_goal_abs - target_motor13_drive_pos_;
+            if (std::abs(motor13_diff) > motor13_step) {
+                target_motor13_drive_pos_ += (motor13_diff > 0.0) ? motor13_step : -motor13_step;
+            } else {
+                target_motor13_drive_pos_ = motor13_goal_abs;
+            }
+
+            add_motor_cmd(motor_id_13_, 2, target_motor13_drive_pos_);
         }
 
         // 送信
