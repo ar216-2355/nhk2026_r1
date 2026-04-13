@@ -178,8 +178,9 @@ private:
             cmd_msg.motors.push_back(cmd);
         };
 
-        // ハードウェアがDRIVE(2)以外なら、ソフトウェア状態も強制的にEMERGENCYにする
-        if (current_fb_.system_state != 2 && sys_mode_ != SystemMode::EMERGENCY) {
+        // DRIVE中にハードウェアがDRIVE(2)から外れた時のみ、EMERGENCYへ落とす
+        // HOMING/HOMING_ASCENDはsystem_stateに依存せず継続させる
+        if (current_fb_.system_state != 2 && sys_mode_ == SystemMode::DRIVE) {
             sys_mode_ = SystemMode::EMERGENCY;
             RCLCPP_WARN(this->get_logger(), "Hardware dropped out of DRIVE mode. Forcing internal state to EMERGENCY.");
         }
@@ -308,59 +309,68 @@ private:
         prev_d_right = current_d_right;
         prev_home = current_home;
 
-        // システムステータスがDRIVEモード(物理ボタン)でないなら足回り等は動かさない
-        if (current_fb_.system_state != 2) return;
+        // システムステータスがDRIVE(2)でない時は足回り・機構のみ停止し、
+        // 昇降のHOMING/HOMING_ASCEND処理は継続する
+        bool hw_drive_enabled = (current_fb_.system_state == 2);
 
         // --- 足回りの計算 ---
+        if (hw_drive_enabled) {
+            double raw_vx = latest_joy_.axes[axis_vx_];
+            double raw_vy = latest_joy_.axes[axis_vy_];
+            double vx = std::abs(raw_vx) < 0.05 ? 0.0 : raw_vx;
+            double vy = std::abs(raw_vy) < 0.05 ? 0.0 : raw_vy;
 
-        double raw_vx = latest_joy_.axes[axis_vx_];
-        double raw_vy = latest_joy_.axes[axis_vy_];
-        double vx = std::abs(raw_vx) < 0.05 ? 0.0 : raw_vx;
-        double vy = std::abs(raw_vy) < 0.05 ? 0.0 : raw_vy;
+            static bool lt_initialized = false;
+            static bool rt_initialized = false;
+            double lt_axis = latest_joy_.axes[axis_lt_];
+            double rt_axis = latest_joy_.axes[axis_rt_];
+            if (lt_axis != 0.0) lt_initialized = true;
+            if (rt_axis != 0.0) rt_initialized = true;
+            double lt_val = lt_initialized ? (1.0 - lt_axis) / 2.0 : 0.0;
+            double rt_val = rt_initialized ? (1.0 - rt_axis) / 2.0 : 0.0;
+            double raw_omega = rt_val - lt_val;
+            double omega = std::abs(raw_omega) < 0.05 ? 0.0 : raw_omega;
 
-        static bool lt_initialized = false;
-        static bool rt_initialized = false;
-        double lt_axis = latest_joy_.axes[axis_lt_];
-        double rt_axis = latest_joy_.axes[axis_rt_];
-        if (lt_axis != 0.0) lt_initialized = true;
-        if (rt_axis != 0.0) rt_initialized = true;
-        double lt_val = lt_initialized ? (1.0 - lt_axis) / 2.0 : 0.0;
-        double rt_val = rt_initialized ? (1.0 - rt_axis) / 2.0 : 0.0;
-        double raw_omega = rt_val - lt_val;
-        double omega = std::abs(raw_omega) < 0.05 ? 0.0 : raw_omega;
+            double v_fl = -vx + vy + omega;
+            double v_fr = -vx - vy + omega;
+            double v_bl = vx + vy + omega;
+            double v_br = vx - vy + omega;
 
-        double v_fl = -vx + vy + omega;
-        double v_fr = -vx - vy + omega;
-        double v_bl = vx + vy + omega;
-        double v_br = vx - vy + omega;
+            double max_val = std::max({1.0, std::abs(v_fl), std::abs(v_fr), std::abs(v_bl), std::abs(v_br)});
+            v_fl = (v_fl / max_val) * max_rpm_;
+            v_fr = (v_fr / max_val) * max_rpm_;
+            v_bl = (v_bl / max_val) * max_rpm_;
+            v_br = (v_br / max_val) * max_rpm_;
 
-        double max_val = std::max({1.0, std::abs(v_fl), std::abs(v_fr), std::abs(v_bl), std::abs(v_br)});
-        v_fl = (v_fl / max_val) * max_rpm_;
-        v_fr = (v_fr / max_val) * max_rpm_;
-        v_bl = (v_bl / max_val) * max_rpm_;
-        v_br = (v_br / max_val) * max_rpm_;
+            add_motor_cmd(motor_id_fl_, 1, v_fl);
+            add_motor_cmd(motor_id_fr_, 1, v_fr);
+            add_motor_cmd(motor_id_bl_, 1, v_bl);
+            add_motor_cmd(motor_id_br_, 1, v_br);
 
-        add_motor_cmd(motor_id_fl_, 1, v_fl);
-        add_motor_cmd(motor_id_fr_, 1, v_fr);
-        add_motor_cmd(motor_id_bl_, 1, v_bl);
-        add_motor_cmd(motor_id_br_, 1, v_br);
+            // --- 押し出しとグリップ ---
+            double target_extend = 0.0;
+            if (latest_joy_.buttons[btn_extend_]) {
+                target_extend = -extend_max_rpm_;
+            } else if (latest_joy_.buttons[btn_contract_]) {
+                target_extend = extend_max_rpm_;
+            }
+            add_motor_cmd(motor_id_extend_, 1, target_extend);
 
-        // --- 押し出しとグリップ ---
-        double target_extend = 0.0;
-        if (latest_joy_.buttons[btn_extend_]) {
-            target_extend = -extend_max_rpm_; 
-        } else if (latest_joy_.buttons[btn_contract_]) {
-            target_extend = extend_max_rpm_;  
+            double target_grip = 0.0;
+            if (latest_joy_.buttons[btn_grip_open_]) {
+                target_grip = grip_max_rpm_;
+            } else if (latest_joy_.buttons[btn_grip_close_]) {
+                target_grip = -grip_max_rpm_;
+            }
+            add_motor_cmd(motor_id_grip_, 1, target_grip);
+        } else {
+            add_motor_cmd(motor_id_fl_, 1, 0.0f);
+            add_motor_cmd(motor_id_fr_, 1, 0.0f);
+            add_motor_cmd(motor_id_bl_, 1, 0.0f);
+            add_motor_cmd(motor_id_br_, 1, 0.0f);
+            add_motor_cmd(motor_id_extend_, 1, 0.0f);
+            add_motor_cmd(motor_id_grip_, 1, 0.0f);
         }
-        add_motor_cmd(motor_id_extend_, 1, target_extend);
-
-        double target_grip = 0.0;
-        if (latest_joy_.buttons[btn_grip_open_]) {
-            target_grip = grip_max_rpm_;  
-        } else if (latest_joy_.buttons[btn_grip_close_]) {
-            target_grip = -grip_max_rpm_; 
-        }
-        add_motor_cmd(motor_id_grip_, 1, target_grip);
 
         // --- 昇降の処理 ---
         if (sys_mode_ == SystemMode::HOMING) {
