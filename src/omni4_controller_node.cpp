@@ -47,6 +47,8 @@ public:
         this->declare_parameter("axis_lt", 2); // LT (大抵2): 旋回（左）
         this->declare_parameter("axis_rt", 5); // RT (5): 旋回（右）
         this->declare_parameter("axis_lift", 4); // R_stick_y (通常4): 昇降
+        this->declare_parameter("axis_dpad_x", 6); // Dパッド横
+        this->declare_parameter("axis_dpad_y", 7); // Dパッド縦
 
         // --- ボタン設定 ---
         this->declare_parameter("btn_extend", 4); // LB (4) -> 伸ばす
@@ -56,9 +58,10 @@ public:
         this->declare_parameter("btn_can_x", 2); // X (2) -> CAN 送信 (0x301 ...)
         this->declare_parameter("btn_can_y", 3); // Y (3) -> CAN 送信 (0x301 ...)
         
-        // 緊急停止とホーミング用ボタン
+        // 緊急停止とホーミング、その他用ボタン
         this->declare_parameter("btn_start", 7); // START -> ホーミング開始
         this->declare_parameter("btn_back", 6);  // BACK -> EMERGENCY(電流ゼロ)
+        this->declare_parameter("btn_home", 8);  // HOME -> CAN 送信 (0x111 ...)
 
         // --- 速度などの設定値 ---
         this->declare_parameter("max_rpm", 3000.0f);
@@ -90,6 +93,8 @@ public:
         axis_lt_ = this->get_parameter("axis_lt").as_int();
         axis_rt_ = this->get_parameter("axis_rt").as_int();
         axis_lift_ = this->get_parameter("axis_lift").as_int();
+        axis_dpad_x_ = this->get_parameter("axis_dpad_x").as_int();
+        axis_dpad_y_ = this->get_parameter("axis_dpad_y").as_int();
 
         btn_extend_ = this->get_parameter("btn_extend").as_int();
         btn_contract_ = this->get_parameter("btn_contract").as_int();
@@ -99,6 +104,7 @@ public:
         btn_can_y_ = this->get_parameter("btn_can_y").as_int();
         btn_start_ = this->get_parameter("btn_start").as_int();
         btn_back_  = this->get_parameter("btn_back").as_int();
+        btn_home_  = this->get_parameter("btn_home").as_int();
 
         max_rpm_ = this->get_parameter("max_rpm").as_double();
         lift_max_rpm_ = this->get_parameter("lift_max_rpm").as_double();
@@ -127,8 +133,8 @@ private:
     int motor_id_fl_, motor_id_fr_, motor_id_bl_, motor_id_br_;
     int motor_id_lift_fl_, motor_id_lift_fr_, motor_id_lift_bl_, motor_id_lift_br_;
     int motor_id_extend_, motor_id_grip_;
-    int axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_;
-    int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_, btn_can_x_, btn_can_y_, btn_start_, btn_back_;
+    int axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_, axis_dpad_x_, axis_dpad_y_;
+    int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_, btn_can_x_, btn_can_y_, btn_start_, btn_back_, btn_home_;
     double max_rpm_, lift_max_rpm_, extend_max_rpm_, grip_max_rpm_, homing_rpm_, homing_current_, homing_ascend_deg_;
 
     SystemMode sys_mode_;
@@ -158,9 +164,10 @@ private:
 
     void control_loop() {
         if (latest_joy_.buttons.empty()) return;
-        int max_btn = std::max({btn_start_, btn_back_, btn_can_x_, btn_can_y_, btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_});
+        int max_btn = std::max({btn_start_, btn_back_, btn_home_, btn_can_x_, btn_can_y_, btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_});
         if (latest_joy_.buttons.size() <= (size_t)max_btn) return;
-        if (latest_joy_.axes.empty()) return;
+        int max_axis = std::max({axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_, axis_dpad_x_, axis_dpad_y_});
+        if (latest_joy_.axes.size() <= (size_t)max_axis) return;
 
         robomas_interfaces::msg::RobomasPacket cmd_msg;
         auto add_motor_cmd = [&](int id, int mode, float target) {
@@ -185,6 +192,19 @@ private:
                 RCLCPP_WARN(this->get_logger(), "EMERGENCY STOP (BACK Pressed). All motors currently disabled.");
             }
         } else if (is_start_pressed) {
+            // STARTを押した時にCANフレームも複数送る
+            auto msg1 = robomas_interfaces::msg::CanFrame();
+            msg1.id = 0x301; msg1.dlc = 8; msg1.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            can_pub_->publish(msg1);
+
+            auto msg2 = robomas_interfaces::msg::CanFrame();
+            msg2.id = 0x302; msg2.dlc = 8; msg2.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            can_pub_->publish(msg2);
+
+            auto msg3 = robomas_interfaces::msg::CanFrame();
+            msg3.id = 0x110; msg3.dlc = 1; msg3.data = {0x04};
+            can_pub_->publish(msg3);
+
             if (sys_mode_ == SystemMode::EMERGENCY || sys_mode_ == SystemMode::DRIVE) {
                 sys_mode_ = SystemMode::HOMING;
                 is_homed_fl_ = false;
@@ -236,6 +256,51 @@ private:
         }
         prev_x = current_x;
         prev_y = current_y;
+
+        // --- DパッドとHOMEキーにおける拡張CAN送信 ---
+        static bool prev_d_up = false;
+        static bool prev_d_down = false;
+        static bool prev_d_left = false;
+        static bool prev_d_right = false;
+        static bool prev_home = false;
+
+        bool current_d_up = latest_joy_.axes[axis_dpad_y_] > 0.5;
+        bool current_d_down = latest_joy_.axes[axis_dpad_y_] < -0.5;
+        bool current_d_left = latest_joy_.axes[axis_dpad_x_] > 0.5;
+        bool current_d_right = latest_joy_.axes[axis_dpad_x_] < -0.5;
+        bool current_home = latest_joy_.buttons[btn_home_];
+
+        if (current_d_up && !prev_d_up) {
+            auto msg = robomas_interfaces::msg::CanFrame();
+            msg.id = 0x301; msg.dlc = 8; msg.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            can_pub_->publish(msg);
+        }
+        if (current_d_down && !prev_d_down) {
+            auto msg = robomas_interfaces::msg::CanFrame();
+            msg.id = 0x301; msg.dlc = 8; msg.data = {0x08, 0xF2, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            can_pub_->publish(msg);
+        }
+        if (current_d_right && !prev_d_right) {
+            auto msg = robomas_interfaces::msg::CanFrame();
+            msg.id = 0x111; msg.dlc = 4; msg.data = {0x3e, 0x80, 0x00, 0x00};
+            can_pub_->publish(msg);
+        }
+        if (current_d_left && !prev_d_left) {
+            auto msg = robomas_interfaces::msg::CanFrame();
+            msg.id = 0x111; msg.dlc = 4; msg.data = {0xbe, 0x80, 0x00, 0x00};
+            can_pub_->publish(msg);
+        }
+        if (current_home && !prev_home) {
+            auto msg = robomas_interfaces::msg::CanFrame();
+            msg.id = 0x111; msg.dlc = 4; msg.data = {0x00, 0x00, 0x00, 0x00};
+            can_pub_->publish(msg);
+        }
+
+        prev_d_up = current_d_up;
+        prev_d_down = current_d_down;
+        prev_d_left = current_d_left;
+        prev_d_right = current_d_right;
+        prev_home = current_home;
 
         // システムステータスがDRIVEモード(物理ボタン)でないなら足回り等は動かさない
         if (current_fb_.system_state != 2) return;
