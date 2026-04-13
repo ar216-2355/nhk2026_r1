@@ -245,14 +245,12 @@ private:
         bool is_start_pressed = (current_start && !prev_start); // エッジ検出
         prev_start = current_start;
 
+        static bool prev_back = false;
         bool current_back = latest_joy_.buttons[btn_back_];
+        bool is_back_pressed = (current_back && !prev_back);   // エッジ検出
+        prev_back = current_back;
 
-        if (current_back) {
-            if (sys_mode_ != SystemMode::EMERGENCY) {
-                sys_mode_ = SystemMode::EMERGENCY;
-                RCLCPP_WARN(this->get_logger(), "EMERGENCY STOP (BACK Pressed). All motors currently disabled.");
-            }
-        } else if (is_start_pressed) {
+        if (is_start_pressed) {
             if (current_fb_.system_state != 2) {
                 RCLCPP_WARN(this->get_logger(), "START pressed while system_state=%d (not DRIVE). Sending CAN init and starting HOMING anyway.", current_fb_.system_state);
             }
@@ -283,6 +281,11 @@ private:
                 target_motor5_drive_pos_ = 0.0;
                 target_motor13_drive_pos_ = 0.0;
                 RCLCPP_INFO(this->get_logger(), "HOMING STARTED. Waiting for 4 lift motors, motor 5, and motor 13 to reach their thresholds.");
+            }
+        } else if (is_back_pressed) {
+            if (sys_mode_ != SystemMode::EMERGENCY) {
+                sys_mode_ = SystemMode::EMERGENCY;
+                RCLCPP_WARN(this->get_logger(), "EMERGENCY STOP (BACK Pressed). All motors currently disabled.");
             }
         }
 
