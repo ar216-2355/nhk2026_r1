@@ -76,7 +76,7 @@ public:
 
         // ホーミング周りの設定
         this->declare_parameter("homing_rpm", 500.0f);       // ホーミング時の下降速度
-        this->declare_parameter("homing_current", 1000.0f);  // ホーミング完了とする電流閾値 (mA) 1A=1000mA
+        this->declare_parameter("homing_current", 2000.0f);  // ホーミング完了とする電流閾値 (mA) 1A=1000mA
         this->declare_parameter("homing_ascend_deg", 1000.0f); // ホーミング完了後に上昇する距離(度)
         this->declare_parameter("homing_timeout_sec", 8.0f); // ホーミング最大待機時間(秒)
 
