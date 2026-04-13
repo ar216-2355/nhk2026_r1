@@ -306,9 +306,7 @@ private:
         if (current_fb_.system_state != 2) return;
 
         // --- 足回りの計算 ---
-        int max_axis = std::max({axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_});
-        if (latest_joy_.axes.size() <= (size_t)max_axis) return;
-        
+
         double raw_vx = latest_joy_.axes[axis_vx_];
         double raw_vy = latest_joy_.axes[axis_vy_];
         double vx = std::abs(raw_vx) < 0.05 ? 0.0 : raw_vx;
