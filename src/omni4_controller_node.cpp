@@ -387,16 +387,6 @@ private:
                 target_grip = -grip_max_rpm_;
             }
             add_motor_cmd(motor_id_grip_, 1, target_grip);
-
-            static bool prev_a = false;
-            bool current_a = latest_joy_.buttons[btn_grip_open_];
-            if (current_a && !prev_a) {
-                motor13_drive_high_ = !motor13_drive_high_;
-                target_motor13_drive_pos_ = motor13_drive_high_ ? 1000.0 : -60000.0;
-                add_motor_cmd(motor_id_13_, 2, target_motor13_drive_pos_);
-                RCLCPP_INFO(this->get_logger(), "Motor 13 target toggled to %.1f", target_motor13_drive_pos_);
-            }
-            prev_a = current_a;
         } else {
             add_motor_cmd(motor_id_fl_, 1, 0.0f);
             add_motor_cmd(motor_id_fr_, 1, 0.0f);
