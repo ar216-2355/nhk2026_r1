@@ -391,7 +391,7 @@ private:
         }
         if (current_d_right && !prev_d_right) {
             auto msg = robomas_interfaces::msg::CanFrame();
-            msg.id = 0x161; msg.dlc = 4; msg.data = {0x3e, 0x80, 0x00, 0x00};
+            msg.id = 0x161; msg.dlc = 4; msg.data = {0x3e, 0x99, 0x99, 0x99};
             can_pub_->publish(msg);
         }
         if (current_d_left && !prev_d_left) {
