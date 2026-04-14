@@ -329,11 +329,16 @@ private:
             return; 
         }
 
-        // --- CAN フレームの送信 (X / Y ボタン) ---
+        // --- CAN フレームの送信 (X / B / Y ボタン) ---
         static bool prev_x = false;
+        static bool prev_b_can = false;
         static bool prev_y = false;
         bool current_x = latest_joy_.buttons[btn_can_x_];
+        bool current_b_can = latest_joy_.buttons[btn_grip_close_];
         bool current_y = latest_joy_.buttons[btn_can_y_];
+
+        static bool can_302_high = false;
+        static bool can_400_high = false;
 
         if (current_x && !prev_x) {
             auto msg = robomas_interfaces::msg::CanFrame();
@@ -343,15 +348,34 @@ private:
             can_pub_->publish(msg);
             RCLCPP_INFO(this->get_logger(), "Sent CAN Frame (X button)");
         }
+        if (current_b_can && !prev_b_can) {
+            auto msg = robomas_interfaces::msg::CanFrame();
+            msg.id = 0x302;
+            msg.dlc = 8;
+            if (can_302_high) {
+                msg.data = {0x07, 0xF8, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            } else {
+                msg.data = {0x00, 0xD0, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            }
+            can_302_high = !can_302_high;
+            can_pub_->publish(msg);
+            RCLCPP_INFO(this->get_logger(), "Sent CAN Frame (B button, 0x302 toggle)");
+        }
         if (current_y && !prev_y) {
             auto msg = robomas_interfaces::msg::CanFrame();
-            msg.id = 0x301;
-            msg.dlc = 8;
-            msg.data = {0x0A, 0xBC, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            msg.id = 0x400;
+            msg.dlc = 1;
+            if (can_400_high) {
+                msg.data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            } else {
+                msg.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            }
+            can_400_high = !can_400_high;
             can_pub_->publish(msg);
-            RCLCPP_INFO(this->get_logger(), "Sent CAN Frame (Y button)");
+            RCLCPP_INFO(this->get_logger(), "Sent CAN Frame (Y button, 0x400 toggle)");
         }
         prev_x = current_x;
+        prev_b_can = current_b_can;
         prev_y = current_y;
 
         // --- DパッドとHOMEキーにおける拡張CAN送信 ---
