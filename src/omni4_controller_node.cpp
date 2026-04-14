@@ -16,6 +16,12 @@ enum class SystemMode {
     DRIVE
 };
 
+enum class ServoAngleState {
+    DEG_45,
+    DEG_135,
+    DEG_225
+};
+
 class Omni4ControllerNode : public rclcpp::Node {
 public:
     Omni4ControllerNode() : Node("omni4_controller_node"),
@@ -27,7 +33,8 @@ public:
                             target_motor5_home_pos_(0.0),
                             target_motor5_drive_pos_(0.0),
                             target_motor13_home_pos_(0.0),
-                            target_motor13_drive_pos_(0.0) {
+                            target_motor13_drive_pos_(0.0),
+                            servo_angle_state_(ServoAngleState::DEG_45) {
         
         // --- モーターID（ご提示の設定：fl=1, bl=2, br=9, fr=10） ---
         this->declare_parameter("motor_id_fl", 1);
@@ -179,6 +186,7 @@ private:
     double origin_motor5_pos_;
     double origin_motor13_pos_;
     rclcpp::Time homing_start_time_;
+    ServoAngleState servo_angle_state_;
     bool is_homed_fl_ = false;
     bool is_homed_bl_ = false;
     bool is_homed_br_ = false;
@@ -256,11 +264,11 @@ private:
             }
             // STARTを押した時にCANフレームも複数送る
             auto msg1 = robomas_interfaces::msg::CanFrame();
-            msg1.id = 0x301; msg1.dlc = 8; msg1.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            msg1.id = 0x301; msg1.dlc = 8; msg1.data = {0x05, 0x53, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00};
             can_pub_->publish(msg1);
 
             auto msg2 = robomas_interfaces::msg::CanFrame();
-            msg2.id = 0x302; msg2.dlc = 8; msg2.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            msg2.id = 0x302; msg2.dlc = 8; msg2.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
             can_pub_->publish(msg2);
 
             auto msg3 = robomas_interfaces::msg::CanFrame();
@@ -345,15 +353,41 @@ private:
         bool current_d_right = latest_joy_.axes[axis_dpad_x_] < -0.5;
         bool current_home = latest_joy_.buttons[btn_home_];
 
-        if (current_d_up && !prev_d_up) {
+        auto send_servo_angle = [&](ServoAngleState state) {
             auto msg = robomas_interfaces::msg::CanFrame();
-            msg.id = 0x301; msg.dlc = 8; msg.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+            msg.id = 0x301;
+            msg.dlc = 8;
+            switch (state) {
+                case ServoAngleState::DEG_45:
+                    msg.data = {0x01, 0xCA, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+                    break;
+                case ServoAngleState::DEG_135:
+                    msg.data = {0x05, 0x53, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00};
+                    break;
+                case ServoAngleState::DEG_225:
+                    msg.data = {0x08, 0xF2, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+                    break;
+            }
             can_pub_->publish(msg);
+        };
+
+        if (current_d_up && !prev_d_up) {
+            if (servo_angle_state_ == ServoAngleState::DEG_225) {
+                servo_angle_state_ = ServoAngleState::DEG_135;
+                send_servo_angle(ServoAngleState::DEG_135);
+            } else if (servo_angle_state_ == ServoAngleState::DEG_135) {
+                servo_angle_state_ = ServoAngleState::DEG_45;
+                send_servo_angle(ServoAngleState::DEG_45);
+            }
         }
         if (current_d_down && !prev_d_down) {
-            auto msg = robomas_interfaces::msg::CanFrame();
-            msg.id = 0x301; msg.dlc = 8; msg.data = {0x08, 0xF2, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
-            can_pub_->publish(msg);
+            if (servo_angle_state_ == ServoAngleState::DEG_45) {
+                servo_angle_state_ = ServoAngleState::DEG_135;
+                send_servo_angle(ServoAngleState::DEG_135);
+            } else if (servo_angle_state_ == ServoAngleState::DEG_135) {
+                servo_angle_state_ = ServoAngleState::DEG_225;
+                send_servo_angle(ServoAngleState::DEG_225);
+            }
         }
         if (current_d_right && !prev_d_right) {
             auto msg = robomas_interfaces::msg::CanFrame();
