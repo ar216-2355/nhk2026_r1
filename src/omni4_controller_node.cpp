@@ -56,8 +56,8 @@ public:
         this->declare_parameter("motor_id_grip", 6);
         
         // --- ジョイスティックの軸設定 ---
-        this->declare_parameter("axis_vx", 4); // R_stick_y: 前後
-        this->declare_parameter("axis_vy", 3); // R_stick_x: 左右
+        this->declare_parameter("axis_vx", 3); // R_stick_y: 前後
+        this->declare_parameter("axis_vy", 4); // R_stick_x: 左右
         this->declare_parameter("axis_lt", 2); // LT (大抵2): 旋回（左）
         this->declare_parameter("axis_rt", 5); // RT (5): 旋回（右）
         this->declare_parameter("axis_lift", 1); // L_stick_y: 昇降
