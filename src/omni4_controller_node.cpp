@@ -90,7 +90,6 @@ public:
         this->declare_parameter("homing_current_lift_bl", 1000.0f);
         this->declare_parameter("homing_current_lift_br", 1000.0f);
         this->declare_parameter("homing_current_lift_fr", 1000.0f);
-        this->declare_parameter("homing_current_motor5", 2000.0f);   // 2A
         this->declare_parameter("homing_current_motor13", 2000.0f);  // 2A
         this->declare_parameter("homing_ascend_deg", 1000.0f); // ホーミング完了後に上昇する距離(度)
         this->declare_parameter("homing_timeout_sec", 8.0f); // ホーミング最大待機時間(秒)
@@ -142,7 +141,6 @@ public:
         homing_current_lift_bl_ = this->get_parameter("homing_current_lift_bl").as_double();
         homing_current_lift_br_ = this->get_parameter("homing_current_lift_br").as_double();
         homing_current_lift_fr_ = this->get_parameter("homing_current_lift_fr").as_double();
-        homing_current_motor5_ = this->get_parameter("homing_current_motor5").as_double();
         homing_current_motor13_ = this->get_parameter("homing_current_motor13").as_double();
         homing_ascend_deg_ = this->get_parameter("homing_ascend_deg").as_double();
         homing_timeout_sec_ = this->get_parameter("homing_timeout_sec").as_double();
@@ -472,13 +470,6 @@ private:
             add_motor_cmd(motor_id_bl_, 1, v_bl);
             add_motor_cmd(motor_id_br_, 1, v_br);
 
-            // --- 押し出しとグリップ ---
-            double target_extend = 0.0;
-            if (latest_joy_.buttons[btn_extend_]) {
-                target_extend = -extend_max_rpm_;
-            } else if (latest_joy_.buttons[btn_contract_]) {
-                target_extend = extend_max_rpm_;
-            }
             double target_grip = 0.0;
             if (latest_joy_.buttons[btn_grip_close_]) {
                 target_grip = -grip_max_rpm_;
@@ -624,7 +615,6 @@ private:
             add_motor_cmd(motor_id_lift_bl_, 2, target_lift_pos_bl_);
             add_motor_cmd(motor_id_lift_br_, 2, target_lift_pos_br_);
             add_motor_cmd(motor_id_lift_fr_, 2, target_lift_pos_fr_);
-            add_motor_cmd(motor_id_extend_, 2, target_motor5_home_pos_);
             add_motor_cmd(motor_id_13_, 2, target_motor13_home_pos_);
         }
         else if (sys_mode_ == SystemMode::DRIVE) {
