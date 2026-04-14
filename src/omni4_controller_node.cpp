@@ -82,7 +82,7 @@ public:
         this->declare_parameter("lift_max_rpm", 3000.0f);
         this->declare_parameter("extend_max_rpm", 2000.0f);
         this->declare_parameter("grip_max_rpm", 1500.0f);
-        this->declare_parameter("motor13_max_vel_deg_s", 10800.0f);   // 13番位置制御の最大速度[deg/s]
+        this->declare_parameter("motor13_max_vel_deg_s", 50800.0f);   // 13番位置制御の最大速度[deg/s]
         this->declare_parameter("motor13_max_acc_deg_s2", 36000.0f);  // 13番位置制御の最大加速度[deg/s^2]
 
         // ホーミング周りの設定
