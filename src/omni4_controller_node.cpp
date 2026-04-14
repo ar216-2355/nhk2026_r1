@@ -84,6 +84,9 @@ public:
         this->declare_parameter("grip_max_rpm", 1500.0f);
         this->declare_parameter("motor13_max_vel_deg_s", 50800.0f);   // 13番位置制御の最大速度[deg/s]
         this->declare_parameter("motor13_max_acc_deg_s2", 66000.0f);  // 13番位置制御の最大加速度[deg/s^2]
+        this->declare_parameter("lift_max_travel_deg", 60000.0f);     // 昇降の原点からの最大移動量[deg]
+        this->declare_parameter("motor5_max_travel_deg", 7000.0f);    // 5番の原点からの最大移動量[deg]
+        this->declare_parameter("motor13_max_travel_deg", 60000.0f);  // 13番の原点からの最大移動量[deg]
 
         // ホーミング周りの設定
         this->declare_parameter("homing_rpm", 500.0f);       // ホーミング時の下降速度
@@ -136,6 +139,9 @@ public:
         grip_max_rpm_ = this->get_parameter("grip_max_rpm").as_double();
         motor13_max_vel_deg_s_ = this->get_parameter("motor13_max_vel_deg_s").as_double();
         motor13_max_acc_deg_s2_ = this->get_parameter("motor13_max_acc_deg_s2").as_double();
+        lift_max_travel_deg_ = this->get_parameter("lift_max_travel_deg").as_double();
+        motor5_max_travel_deg_ = this->get_parameter("motor5_max_travel_deg").as_double();
+        motor13_max_travel_deg_ = this->get_parameter("motor13_max_travel_deg").as_double();
         
         homing_rpm_ = this->get_parameter("homing_rpm").as_double();
         homing_current_lift_fl_ = this->get_parameter("homing_current_lift_fl").as_double();
@@ -172,6 +178,7 @@ private:
     int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_, btn_can_x_, btn_can_y_, btn_start_, btn_back_, btn_home_;
     double max_rpm_, lift_max_rpm_, extend_max_rpm_, grip_max_rpm_, homing_rpm_, homing_ascend_deg_;
     double motor13_max_vel_deg_s_, motor13_max_acc_deg_s2_;
+    double lift_max_travel_deg_, motor5_max_travel_deg_, motor13_max_travel_deg_;
     double homing_current_lift_fl_, homing_current_lift_bl_, homing_current_lift_br_, homing_current_lift_fr_;
     double homing_current_motor5_, homing_current_motor13_;
     double homing_timeout_sec_;
@@ -615,6 +622,16 @@ private:
                 sys_mode_ = SystemMode::DRIVE;
             }
 
+            auto clamp_between = [](double value, double a, double b) {
+                return std::clamp(value, std::min(a, b), std::max(a, b));
+            };
+            target_lift_pos_fl_ = clamp_between(target_lift_pos_fl_, origin_lift_pos_fl_, origin_lift_pos_fl_ + lift_max_travel_deg_);
+            target_lift_pos_bl_ = clamp_between(target_lift_pos_bl_, origin_lift_pos_bl_, origin_lift_pos_bl_ + lift_max_travel_deg_);
+            target_lift_pos_br_ = clamp_between(target_lift_pos_br_, origin_lift_pos_br_, origin_lift_pos_br_ - lift_max_travel_deg_);
+            target_lift_pos_fr_ = clamp_between(target_lift_pos_fr_, origin_lift_pos_fr_, origin_lift_pos_fr_ - lift_max_travel_deg_);
+            target_motor5_home_pos_ = clamp_between(target_motor5_home_pos_, origin_motor5_pos_, origin_motor5_pos_ - motor5_max_travel_deg_);
+            target_motor13_home_pos_ = clamp_between(target_motor13_home_pos_, origin_motor13_pos_, origin_motor13_pos_ - motor13_max_travel_deg_);
+
             add_motor_cmd(motor_id_lift_fl_, 2, target_lift_pos_fl_);
             add_motor_cmd(motor_id_lift_bl_, 2, target_lift_pos_bl_);
             add_motor_cmd(motor_id_lift_br_, 2, target_lift_pos_br_);
@@ -641,6 +658,14 @@ private:
             target_lift_pos_br_ += delta_rpm_br_fr * 6.0 * 0.02;
             target_lift_pos_fr_ += delta_rpm_br_fr * 6.0 * 0.02;
 
+            auto clamp_between = [](double value, double a, double b) {
+                return std::clamp(value, std::min(a, b), std::max(a, b));
+            };
+            target_lift_pos_fl_ = clamp_between(target_lift_pos_fl_, origin_lift_pos_fl_, origin_lift_pos_fl_ + lift_max_travel_deg_);
+            target_lift_pos_bl_ = clamp_between(target_lift_pos_bl_, origin_lift_pos_bl_, origin_lift_pos_bl_ + lift_max_travel_deg_);
+            target_lift_pos_br_ = clamp_between(target_lift_pos_br_, origin_lift_pos_br_, origin_lift_pos_br_ - lift_max_travel_deg_);
+            target_lift_pos_fr_ = clamp_between(target_lift_pos_fr_, origin_lift_pos_fr_, origin_lift_pos_fr_ - lift_max_travel_deg_);
+
             // 原点(ホーミング時の角度)以下には下がれないようにする制限は設けていません。
             // ※必要に応じて、target_lift_pos_xx_ が原点を越えないように制約できます。
 
@@ -666,6 +691,7 @@ private:
             prev_a_drive = current_a_drive;
 
             double motor5_goal_abs = origin_motor5_pos_ + (motor5_drive_high_ ? -7000.0 : -1000.0);
+            motor5_goal_abs = clamp_between(motor5_goal_abs, origin_motor5_pos_, origin_motor5_pos_ - motor5_max_travel_deg_);
             double motor5_step = (lift_max_rpm_ * 0.03) * 6.0 * 0.02;
             double motor5_diff = motor5_goal_abs - target_motor5_drive_pos_;
             if (std::abs(motor5_diff) > motor5_step) {
@@ -673,8 +699,10 @@ private:
             } else {
                 target_motor5_drive_pos_ = motor5_goal_abs;
             }
+            target_motor5_drive_pos_ = clamp_between(target_motor5_drive_pos_, origin_motor5_pos_, origin_motor5_pos_ - motor5_max_travel_deg_);
 
             double motor13_goal_abs = origin_motor13_pos_ + (motor13_drive_high_ ? -60000.0 : -1000.0);
+            motor13_goal_abs = clamp_between(motor13_goal_abs, origin_motor13_pos_, origin_motor13_pos_ - motor13_max_travel_deg_);
             const double dt = 0.01; // control_loop は 10ms 周期
             double motor13_diff = motor13_goal_abs - target_motor13_drive_pos_;
             if (motor13_max_vel_deg_s_ <= 0.0 || motor13_max_acc_deg_s2_ <= 0.0) {
@@ -709,6 +737,7 @@ private:
                     }
                 }
             }
+            target_motor13_drive_pos_ = clamp_between(target_motor13_drive_pos_, origin_motor13_pos_, origin_motor13_pos_ - motor13_max_travel_deg_);
 
             add_motor_cmd(motor_id_extend_, 2, target_motor5_drive_pos_);
             add_motor_cmd(motor_id_13_, 2, target_motor13_drive_pos_);
