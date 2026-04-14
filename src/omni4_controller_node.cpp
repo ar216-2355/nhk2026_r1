@@ -82,6 +82,8 @@ public:
         this->declare_parameter("lift_max_rpm", 3000.0f);
         this->declare_parameter("extend_max_rpm", 2000.0f);
         this->declare_parameter("grip_max_rpm", 1500.0f);
+        this->declare_parameter("motor13_max_vel_deg_s", 10800.0f);   // 13番位置制御の最大速度[deg/s]
+        this->declare_parameter("motor13_max_acc_deg_s2", 36000.0f);  // 13番位置制御の最大加速度[deg/s^2]
 
         // ホーミング周りの設定
         this->declare_parameter("homing_rpm", 500.0f);       // ホーミング時の下降速度
@@ -132,6 +134,8 @@ public:
         lift_max_rpm_ = this->get_parameter("lift_max_rpm").as_double();
         extend_max_rpm_ = this->get_parameter("extend_max_rpm").as_double();
         grip_max_rpm_ = this->get_parameter("grip_max_rpm").as_double();
+        motor13_max_vel_deg_s_ = this->get_parameter("motor13_max_vel_deg_s").as_double();
+        motor13_max_acc_deg_s2_ = this->get_parameter("motor13_max_acc_deg_s2").as_double();
         
         homing_rpm_ = this->get_parameter("homing_rpm").as_double();
         homing_current_lift_fl_ = this->get_parameter("homing_current_lift_fl").as_double();
@@ -167,6 +171,7 @@ private:
     int axis_vx_, axis_vy_, axis_lt_, axis_rt_, axis_lift_, axis_dpad_x_, axis_dpad_y_;
     int btn_extend_, btn_contract_, btn_grip_open_, btn_grip_close_, btn_can_x_, btn_can_y_, btn_start_, btn_back_, btn_home_;
     double max_rpm_, lift_max_rpm_, extend_max_rpm_, grip_max_rpm_, homing_rpm_, homing_ascend_deg_;
+    double motor13_max_vel_deg_s_, motor13_max_acc_deg_s2_;
     double homing_current_lift_fl_, homing_current_lift_bl_, homing_current_lift_br_, homing_current_lift_fr_;
     double homing_current_motor5_, homing_current_motor13_;
     double homing_timeout_sec_;
@@ -195,6 +200,7 @@ private:
     bool is_homed_motor13_ = false;
     bool motor5_drive_high_ = false;
     bool motor13_drive_high_ = false;
+    double motor13_current_vel_deg_s_ = 0.0;
 
     sensor_msgs::msg::Joy latest_joy_;
     robomas_interfaces::msg::RobomasFrame current_fb_;
@@ -288,6 +294,7 @@ private:
                 motor13_drive_high_ = false;
                 target_motor5_drive_pos_ = 0.0;
                 target_motor13_drive_pos_ = 0.0;
+                motor13_current_vel_deg_s_ = 0.0;
                 RCLCPP_INFO(this->get_logger(), "HOMING STARTED. Waiting for 4 lift motors, motor 5, and motor 13 to reach their thresholds.");
             }
         } else if (is_back_pressed) {
@@ -603,6 +610,7 @@ private:
                 target_motor5_drive_pos_ = target_motor5_home_pos_;
                 motor13_drive_high_ = false;
                 target_motor13_drive_pos_ = target_motor13_home_pos_;
+                motor13_current_vel_deg_s_ = 0.0;
                 drive_state_miss_count_ = 0;
                 sys_mode_ = SystemMode::DRIVE;
             }
@@ -667,12 +675,39 @@ private:
             }
 
             double motor13_goal_abs = origin_motor13_pos_ + (motor13_drive_high_ ? -60000.0 : -1000.0);
-            double motor13_step = ((lift_max_rpm_ * 0.03) * 6.0 * 0.02) * 30.0;
+            const double dt = 0.01; // control_loop は 10ms 周期
             double motor13_diff = motor13_goal_abs - target_motor13_drive_pos_;
-            if (std::abs(motor13_diff) > motor13_step) {
-                target_motor13_drive_pos_ += (motor13_diff > 0.0) ? motor13_step : -motor13_step;
-            } else {
+            if (motor13_max_vel_deg_s_ <= 0.0 || motor13_max_acc_deg_s2_ <= 0.0) {
                 target_motor13_drive_pos_ = motor13_goal_abs;
+                motor13_current_vel_deg_s_ = 0.0;
+            } else {
+                double dist_abs = std::abs(motor13_diff);
+                if (dist_abs < 1e-6) {
+                    target_motor13_drive_pos_ = motor13_goal_abs;
+                    motor13_current_vel_deg_s_ = 0.0;
+                } else {
+                    double direction = (motor13_diff > 0.0) ? 1.0 : -1.0;
+                    double v_abs = std::abs(motor13_current_vel_deg_s_);
+                    double brake_dist = (v_abs * v_abs) / (2.0 * motor13_max_acc_deg_s2_);
+                    double target_v_abs = (dist_abs > brake_dist)
+                        ? motor13_max_vel_deg_s_
+                        : std::sqrt(2.0 * motor13_max_acc_deg_s2_ * dist_abs);
+                    double target_v = direction * target_v_abs;
+
+                    double max_dv = motor13_max_acc_deg_s2_ * dt;
+                    double dv = target_v - motor13_current_vel_deg_s_;
+                    if (dv > max_dv) dv = max_dv;
+                    if (dv < -max_dv) dv = -max_dv;
+                    motor13_current_vel_deg_s_ += dv;
+
+                    double step = motor13_current_vel_deg_s_ * dt;
+                    if (std::abs(step) >= dist_abs) {
+                        target_motor13_drive_pos_ = motor13_goal_abs;
+                        motor13_current_vel_deg_s_ = 0.0;
+                    } else {
+                        target_motor13_drive_pos_ += step;
+                    }
+                }
             }
 
             add_motor_cmd(motor_id_extend_, 2, target_motor5_drive_pos_);
