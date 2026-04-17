@@ -14,6 +14,7 @@
 #include "nhk2026_r1/omuni.hpp"
 #include "nhk2026_r1/lift.hpp"
 #include "nhk2026_r1/book_catch.hpp"
+#include "nhk2026_r1/pole_catch.hpp"
 
 using namespace std::chrono_literals;
 
@@ -43,8 +44,11 @@ class R1ControlNode : public rclcpp::Node {
     float current_belt = 0;
     bool kakuno_ok = false;
     bool prev_a_button_ = false;
+    bool prev_b_button_ = false;
+    bool prev_x_button_ = false;
     float target_lift_position_ = 0.0f;
     float target_book_stretch_position_ = 0.0f;
+    float target_pole_stretch_position_ = 0.0f;
 
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) { latest_joy_ = *msg; }
 
@@ -87,10 +91,13 @@ class R1ControlNode : public rclcpp::Node {
         if (current_system_state_ != 2) {
             target_lift_position_ = 0.0f;
             target_book_stretch_position_ = 0.0f;
+            target_pole_stretch_position_ = 0.0f;
         }
 
-        if (latest_joy_.buttons.size() > Joy::A) {
+        if (latest_joy_.buttons.size() > Joy::X) {
             const bool a_pressed = latest_joy_.buttons[Joy::A];
+            const bool b_pressed = latest_joy_.buttons[Joy::B];
+            const bool x_pressed = latest_joy_.buttons[Joy::X];
 
             if (a_pressed && !prev_a_button_ &&
                 lift_state[0] == SystemMode::DRIVE &&
@@ -98,10 +105,21 @@ class R1ControlNode : public rclcpp::Node {
                 lift_state[2] == SystemMode::DRIVE &&
                 lift_state[3] == SystemMode::DRIVE) {
                 target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 360.0f : 20000.0f;
-                target_book_stretch_position_ = (std::fabs(target_book_stretch_position_ - 0.0f) < 1.0f) ? -14000.0f : -360.0f;
+            }
+
+            if (b_pressed && !prev_b_button_) {
+                target_book_stretch_position_ =
+                    (std::fabs(target_book_stretch_position_ - 0.0f) < 1.0f) ? -60000.0f : -360.0f;
+            }
+
+            if (x_pressed && !prev_x_button_) {
+                target_pole_stretch_position_ =
+                    (std::fabs(target_pole_stretch_position_ - 0.0f) < 1.0f) ? -14000.0f : -360.0f;
             }
 
             prev_a_button_ = a_pressed;
+            prev_b_button_ = b_pressed;
+            prev_x_button_ = x_pressed;
         }
 
         set_lift_position(
@@ -118,6 +136,13 @@ class R1ControlNode : public rclcpp::Node {
             target_book_stretch_position_,
             current_motors_[MotorId::BOOK_STRETCH - 1].angle,
             current_motors_[MotorId::BOOK_STRETCH - 1].torque,
+            packet);
+
+        set_pole_stretch(
+            current_system_state_,
+            target_pole_stretch_position_,
+            current_motors_[MotorId::POLE_STRETCH - 1].angle,
+            current_motors_[MotorId::POLE_STRETCH - 1].torque,
             packet);
 
         set_omni_velocity(

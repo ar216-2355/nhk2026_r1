@@ -20,7 +20,7 @@ float book_stretch_profile_target = 0.0f;
 float book_stretch_profile_velocity_rpm = 0.0f;
 
 // Control parameters
-constexpr float BOOK_STRETCH_MIN_POS = -14421.0f;
+constexpr float BOOK_STRETCH_MIN_POS = -64174.0f;
 constexpr float BOOK_STRETCH_MAX_POS = 0.0f;
 constexpr float BOOK_STRETCH_HOMING_VELOCITY = 100.0f;  // 正転でホーミング
 constexpr float BOOK_STRETCH_HOMING_CURRENT_THRESHOLD = 3000.0f;  // mA - 限界検出しきい値
