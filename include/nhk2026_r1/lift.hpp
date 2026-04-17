@@ -124,6 +124,9 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
                 homing_current_over_count[0] = 0;
                 append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::VELOCITY, -100.0f);
             }
+        } else if(lift_state[0] == SystemMode::HOMING_ASCEND) {
+            const float ascend_target_LF = std::clamp(homing_offset[0], minpos, maxpos);
+            append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::POSITION, ascend_target_LF);
         }
         if(lift_state[1] == SystemMode::HOMING) {
             if(std::fabs(LBcur_fb) > homing_current_threshold) {
@@ -139,6 +142,9 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
                 homing_current_over_count[1] = 0;
                 append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::VELOCITY, -100.0f);
             }
+        } else if(lift_state[1] == SystemMode::HOMING_ASCEND) {
+            const float ascend_target_LB = std::clamp(homing_offset[1], minpos, maxpos);
+            append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::POSITION, ascend_target_LB);
         }
         if(lift_state[2] == SystemMode::HOMING) {
             if(std::fabs(RBcur_fb) > homing_current_threshold) {
@@ -154,6 +160,9 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
                 homing_current_over_count[2] = 0;
                 append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::VELOCITY,  100.0f);
             }
+        } else if(lift_state[2] == SystemMode::HOMING_ASCEND) {
+            const float ascend_target_RB = std::clamp(homing_offset[2], rb_rf_minpos, rb_rf_maxpos);
+            append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::POSITION, ascend_target_RB);
         }
         if(lift_state[3] == SystemMode::HOMING) {
             if(std::fabs(RFcur_fb) > homing_current_threshold) {
@@ -169,6 +178,9 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
                 homing_current_over_count[3] = 0;
                 append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::VELOCITY,  100.0f);
             }
+        } else if(lift_state[3] == SystemMode::HOMING_ASCEND) {
+            const float ascend_target_RF = std::clamp(homing_offset[3], rb_rf_minpos, rb_rf_maxpos);
+            append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::POSITION, ascend_target_RF);
         }
     } else if((lift_state[0] == SystemMode::HOMING_ASCEND) && (lift_state[1] == SystemMode::HOMING_ASCEND) && (lift_state[2] == SystemMode::HOMING_ASCEND) && (lift_state[3] == SystemMode::HOMING_ASCEND)) {
         const float ascend_target_LF = std::clamp(homing_offset[0], minpos, maxpos);
