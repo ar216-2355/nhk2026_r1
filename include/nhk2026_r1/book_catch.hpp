@@ -43,7 +43,6 @@ constexpr float BOOK_STRETCH_VELOCITY_TOLERANCE_RPM = 1.0f;
 
 inline uint16_t prev_book_stretch_angle = 0xFFFF;
 inline float prev_book_catch_current = 0.0f;
-bool allready_sent_can_send_book = false;
 
 inline void reset_book_stretch_profile() {
     book_stretch_profile_target = 0.0f;
@@ -196,7 +195,7 @@ inline void servo_book_stretch(
 }
 
 inline void start_can_send_book(const rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr& can_pub){
-    if (!can_pub || allready_sent_can_send_book) {
+    if (!can_pub) {
         return;
     }
     auto msg = robomas_interfaces::msg::CanFrame();
@@ -204,7 +203,6 @@ inline void start_can_send_book(const rclcpp::Publisher<robomas_interfaces::msg:
     msg.dlc = 1;
     msg.data = {0x04};
     can_pub->publish(msg);
-    allready_sent_can_send_book = true;
 }
 
 inline void dc_book_catch(

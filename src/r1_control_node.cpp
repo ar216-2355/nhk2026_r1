@@ -40,6 +40,7 @@ class R1ControlNode : public rclcpp::Node {
  private:
     MotorData current_motors_[16]; // 16台分のモーター状態を入れる棚
     uint8_t current_system_state_ = 0;      // 0:EMERGENCY, 1:READY, 2:DRIVE
+     uint8_t prev_system_state_ = 0;
 
     float start_LF_omuni = 0;
     float current_LF_omuni = 0;
@@ -150,7 +151,9 @@ class R1ControlNode : public rclcpp::Node {
             current_motors_[MotorId::BOOK_STRETCH - 1].torque,
             packet);
         servo_book_stretch(target_book_stretch_angle, can_pub_);
-        start_can_send_book(can_pub_);
+        if (prev_system_state_ == 1 && current_system_state_ == 2) {
+            start_can_send_book(can_pub_);
+        }
         dc_book_catch(target_book_catch_current, can_pub_);
 
         set_pole_stretch(
@@ -168,6 +171,7 @@ class R1ControlNode : public rclcpp::Node {
             packet);
         
         cmd_pub_->publish(packet);
+        prev_system_state_ = current_system_state_;
     }
 
 
