@@ -55,6 +55,7 @@ class R1ControlNode : public rclcpp::Node {
     float target_pole_stretch_position_ = 0.0f;
     uint16_t target_book_stretch_angle = 0;
     uint16_t target_pole_stretch_angle = 0;
+    float target_book_catch_current = 0.0f;
 
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) { latest_joy_ = *msg; }
 
