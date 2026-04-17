@@ -1,8 +1,13 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+
+#include <rclcpp/rclcpp.hpp>
+
 #include "robomas_interfaces/msg/robomas_packet.hpp"
 #include "robomas_interfaces/msg/motor_command.hpp"
+#include "robomas_interfaces/msg/can_frame.hpp"
 #include "nhk2026_r1/r1_constants.hpp"
 
 enum class BookStretchMode {
@@ -32,6 +37,8 @@ constexpr float BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC = 4800.0f;
 constexpr float BOOK_STRETCH_DEGREES_PER_RPM = 6.0f;
 constexpr float BOOK_STRETCH_POSITION_TOLERANCE = 5.0f;
 constexpr float BOOK_STRETCH_VELOCITY_TOLERANCE_RPM = 1.0f;
+
+inline uint16_t prev_book_stretch_angle = 0xFFFF;
 
 inline void reset_book_stretch_profile() {
     book_stretch_profile_target = 0.0f;
@@ -145,4 +152,28 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         reset_book_stretch_profile();
         append_command(MotorId::BOOK_STRETCH, Mode::CURRENT, 0.0f);
     }
+}
+
+inline void servo_book_stretch(
+    uint16_t angle,
+    const rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr& can_pub) {
+    if (!can_pub) {
+        return;
+    }
+
+    if (prev_book_stretch_angle == angle) {
+        return; // 角度が前回と同じならコマンドを送らない
+    } else {
+        prev_book_stretch_angle = angle;
+    }
+
+    const uint16_t raw = static_cast<uint16_t>(std::lround(angle * 10.18f));
+    const uint8_t a = static_cast<uint8_t>(raw & 0xFF);         // 下位8ビット
+    const uint8_t b = static_cast<uint8_t>((raw >> 8) & 0xFF);  // 上位8ビット
+
+    auto msg = robomas_interfaces::msg::CanFrame();
+    msg.id = 0x301;
+    msg.dlc = 8;
+    msg.data = {b, a, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+    can_pub->publish(msg);
 }

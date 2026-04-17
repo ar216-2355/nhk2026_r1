@@ -9,6 +9,8 @@
 #include <robomas_interfaces/msg/motor_command.hpp>
 #include <robomas_interfaces/msg/robomas_packet.hpp>
 #include "robomas_interfaces/msg/robomas_frame.hpp"
+#include "robomas_interfaces/msg/can_frame.hpp"
+
 
 #include "nhk2026_r1/r1_constants.hpp"
 #include "nhk2026_r1/omuni.hpp"
@@ -22,6 +24,7 @@ class R1ControlNode : public rclcpp::Node {
  public:
   R1ControlNode() : Node("r1_control") {
     cmd_pub_ = this->create_publisher<robomas_interfaces::msg::RobomasPacket>("/robomas/cmd", 10);
+    can_pub_ = this->create_publisher<robomas_interfaces::msg::CanFrame>("/robomas/can_tx", 10);
     joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
         "/joy", 10, std::bind(&R1ControlNode::joy_callback, this, std::placeholders::_1));
     sub_feedback_ = this->create_subscription<robomas_interfaces::msg::RobomasFrame>(
@@ -49,6 +52,7 @@ class R1ControlNode : public rclcpp::Node {
     float target_lift_position_ = 0.0f;
     float target_book_stretch_position_ = 0.0f;
     float target_pole_stretch_position_ = 0.0f;
+    uint16_t target_book_stretch_angle = 0;
 
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) { latest_joy_ = *msg; }
 
@@ -113,8 +117,7 @@ class R1ControlNode : public rclcpp::Node {
             }
 
                 if (x_pressed && !prev_x_button_ && current_system_state_ == 2) {
-                target_pole_stretch_position_ =
-                    (std::fabs(target_pole_stretch_position_ - 14000.0f) < 1.0f) ? 0.0f : 14000.0f;
+                target_book_stretch_angle = (target_book_stretch_angle == 0U) ? 90U : 180U;
             }
 
             prev_a_button_ = a_pressed;
@@ -138,6 +141,8 @@ class R1ControlNode : public rclcpp::Node {
             current_motors_[MotorId::BOOK_STRETCH - 1].torque,
             packet);
 
+        servo_book_stretch(target_book_stretch_angle, can_pub_);
+
         set_pole_stretch(
             current_system_state_,
             target_pole_stretch_position_,
@@ -158,6 +163,7 @@ class R1ControlNode : public rclcpp::Node {
 
   sensor_msgs::msg::Joy latest_joy_;
   rclcpp::Publisher<robomas_interfaces::msg::RobomasPacket>::SharedPtr cmd_pub_;
+    rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr can_pub_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
     rclcpp::Subscription<robomas_interfaces::msg::RobomasFrame>::SharedPtr sub_feedback_;
   rclcpp::TimerBase::SharedPtr timer_;

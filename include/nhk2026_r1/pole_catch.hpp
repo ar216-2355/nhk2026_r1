@@ -3,6 +3,7 @@
 #include <cmath>
 #include "robomas_interfaces/msg/robomas_packet.hpp"
 #include "robomas_interfaces/msg/motor_command.hpp"
+#include "robomas_interfaces/msg/can_frame.hpp"
 #include "nhk2026_r1/r1_constants.hpp"
 
 enum class PoleStretchMode {
