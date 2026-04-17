@@ -16,6 +16,8 @@ BookStretchMode book_stretch_state = BookStretchMode::EMERGENCY;
 float book_stretch_offset = 0.0f;
 uint8_t book_stretch_prev_system_state = 0;
 int homing_current_count = 0;
+float book_stretch_profile_target = 0.0f;
+float book_stretch_profile_velocity_rpm = 0.0f;
 
 // Control parameters
 constexpr float BOOK_STRETCH_MIN_POS = -14421.0f;
@@ -23,6 +25,67 @@ constexpr float BOOK_STRETCH_MAX_POS = 0.0f;
 constexpr float BOOK_STRETCH_HOMING_VELOCITY = 100.0f;  // 正転でホーミング
 constexpr float BOOK_STRETCH_HOMING_CURRENT_THRESHOLD = 3000.0f;  // mA - 限界検出しきい値
 constexpr float BOOK_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;  // 電流しきい値確認のデバウンス周期数
+constexpr float BOOK_STRETCH_CONTROL_PERIOD_SEC = 0.01f;
+constexpr float BOOK_STRETCH_MAX_VELOCITY_RPM = 1200.0f;
+constexpr float BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC = 300.0f;
+constexpr float BOOK_STRETCH_DEGREES_PER_RPM = 6.0f;
+constexpr float BOOK_STRETCH_POSITION_TOLERANCE = 5.0f;
+constexpr float BOOK_STRETCH_VELOCITY_TOLERANCE_RPM = 1.0f;
+
+inline void reset_book_stretch_profile() {
+    book_stretch_profile_target = 0.0f;
+    book_stretch_profile_velocity_rpm = 0.0f;
+}
+
+inline float update_book_stretch_trapezoid(float final_target) {
+    const float position_error = final_target - book_stretch_profile_target;
+
+    if (std::fabs(position_error) <= BOOK_STRETCH_POSITION_TOLERANCE &&
+        std::fabs(book_stretch_profile_velocity_rpm) <= BOOK_STRETCH_VELOCITY_TOLERANCE_RPM) {
+        book_stretch_profile_target = final_target;
+        book_stretch_profile_velocity_rpm = 0.0f;
+        return book_stretch_profile_target;
+    }
+
+    const float desired_velocity_rpm =
+        (position_error > 0.0f ? BOOK_STRETCH_MAX_VELOCITY_RPM : -BOOK_STRETCH_MAX_VELOCITY_RPM);
+    const float profile_velocity_deg_per_sec = book_stretch_profile_velocity_rpm * BOOK_STRETCH_DEGREES_PER_RPM;
+    const float max_accel_deg_per_sec2 = BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC * BOOK_STRETCH_DEGREES_PER_RPM;
+    const float stopping_distance =
+        (profile_velocity_deg_per_sec * profile_velocity_deg_per_sec) / (2.0f * max_accel_deg_per_sec2);
+
+    if (std::fabs(position_error) <= stopping_distance) {
+        if (book_stretch_profile_velocity_rpm > 0.0f) {
+            book_stretch_profile_velocity_rpm = std::max(
+                0.0f,
+                book_stretch_profile_velocity_rpm - BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC * BOOK_STRETCH_CONTROL_PERIOD_SEC);
+        } else if (book_stretch_profile_velocity_rpm < 0.0f) {
+            book_stretch_profile_velocity_rpm = std::min(
+                0.0f,
+                book_stretch_profile_velocity_rpm + BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC * BOOK_STRETCH_CONTROL_PERIOD_SEC);
+        }
+    } else {
+        if (desired_velocity_rpm > book_stretch_profile_velocity_rpm) {
+            book_stretch_profile_velocity_rpm = std::min(
+                desired_velocity_rpm,
+                book_stretch_profile_velocity_rpm + BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC * BOOK_STRETCH_CONTROL_PERIOD_SEC);
+        } else {
+            book_stretch_profile_velocity_rpm = std::max(
+                desired_velocity_rpm,
+                book_stretch_profile_velocity_rpm - BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC * BOOK_STRETCH_CONTROL_PERIOD_SEC);
+        }
+    }
+
+    book_stretch_profile_target +=
+        book_stretch_profile_velocity_rpm * BOOK_STRETCH_DEGREES_PER_RPM * BOOK_STRETCH_CONTROL_PERIOD_SEC;
+
+    if ((final_target - book_stretch_profile_target) * position_error <= 0.0f) {
+        book_stretch_profile_target = final_target;
+        book_stretch_profile_velocity_rpm = 0.0f;
+    }
+
+    return book_stretch_profile_target;
+}
 
 inline void set_book_stretch(uint8_t system_state, float position, float pos_fb, float motor_current_ma, robomas_interfaces::msg::RobomasPacket& packet) {
     // Helper lambda to append motor command
@@ -39,6 +102,7 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         book_stretch_state = BookStretchMode::HOMING;
         book_stretch_offset = 0.0f;
         homing_current_count = 0;
+        reset_book_stretch_profile();
     }
     book_stretch_prev_system_state = system_state;
 
@@ -55,6 +119,8 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
                 book_stretch_offset = pos_fb;
                 book_stretch_state = BookStretchMode::DRIVE;
                 homing_current_count = 0;
+                book_stretch_profile_target = pos_fb;
+                book_stretch_profile_velocity_rpm = 0.0f;
             }
         } else {
             // 電流がしきい値以下に戻ったらカウントをリセット
@@ -65,17 +131,17 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
     }
     // DRIVE mode
     else if (book_stretch_state == BookStretchMode::DRIVE && system_state == 2) {  // DRIVE mode
-        // Position control: offset基準に相対位置制御
+        // Position control: offset基準に相対位置制御 + 台形プロファイル
         float target_pos = book_stretch_offset + position;
         target_pos = std::clamp(target_pos, BOOK_STRETCH_MIN_POS, BOOK_STRETCH_MAX_POS);
-        
-        const float position_error = target_pos - pos_fb;
-        const float target_current = std::clamp(position_error * 0.1f, -10000.0f, 10000.0f);
-        append_command(MotorId::BOOK_STRETCH, Mode::CURRENT, target_current);
+
+        const float profile_pos = update_book_stretch_trapezoid(target_pos);
+        append_command(MotorId::BOOK_STRETCH, Mode::POSITION, profile_pos);
     }
     // EMERGENCY mode
     else {
         book_stretch_state = BookStretchMode::EMERGENCY;
+        reset_book_stretch_profile();
         append_command(MotorId::BOOK_STRETCH, Mode::CURRENT, 0.0f);
     }
 }
