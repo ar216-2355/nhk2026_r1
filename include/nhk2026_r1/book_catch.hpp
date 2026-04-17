@@ -13,6 +13,7 @@
 enum class BookStretchMode {
     EMERGENCY,
     HOMING,
+    HOMING_BACKOFF,
     DRIVE
 };
 
@@ -23,6 +24,7 @@ uint8_t book_stretch_prev_system_state = 0;
 int homing_current_count = 0;
 float book_stretch_profile_target = 0.0f;
 float book_stretch_profile_velocity_rpm = 0.0f;
+float book_stretch_backoff_target = 0.0f;
 
 // Control parameters
 constexpr float BOOK_STRETCH_MIN_POS = -64174.0f;
@@ -123,9 +125,12 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         if (motor_current_ma > BOOK_STRETCH_HOMING_CURRENT_THRESHOLD) {
             homing_current_count++;
             if (homing_current_count >= BOOK_STRETCH_HOMING_DEBOUNCE_CYCLES) {
-                // ホーミング完了：逆方向へ指定バックオフ量だけ戻した位置を基準オフセットとして記録
-                book_stretch_offset = std::clamp(pos_fb - BOOK_STRETCH_HOMING_BACKOFF, BOOK_STRETCH_MIN_POS, BOOK_STRETCH_MAX_POS);
-                book_stretch_state = BookStretchMode::DRIVE;
+                // ホーミング完了後、まずは指定バックオフ位置まで戻す
+                book_stretch_backoff_target = std::clamp(
+                    pos_fb - BOOK_STRETCH_HOMING_BACKOFF,
+                    BOOK_STRETCH_MIN_POS,
+                    BOOK_STRETCH_MAX_POS);
+                book_stretch_state = BookStretchMode::HOMING_BACKOFF;
                 homing_current_count = 0;
                 book_stretch_profile_target = pos_fb;
                 book_stretch_profile_velocity_rpm = 0.0f;
@@ -135,6 +140,15 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
             if (homing_current_count > 0) {
                 homing_current_count = 0;
             }
+        }
+    }
+    else if (book_stretch_state == BookStretchMode::HOMING_BACKOFF && system_state == 2) {
+        const float profile_pos = update_book_stretch_trapezoid(book_stretch_backoff_target);
+        append_command(MotorId::BOOK_STRETCH, Mode::POSITION, profile_pos);
+
+        if (std::fabs(book_stretch_backoff_target - pos_fb) <= BOOK_STRETCH_POSITION_TOLERANCE) {
+            book_stretch_offset = book_stretch_backoff_target;
+            book_stretch_state = BookStretchMode::DRIVE;
         }
     }
     // DRIVE mode
