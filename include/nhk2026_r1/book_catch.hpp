@@ -25,6 +25,7 @@ constexpr float BOOK_STRETCH_MAX_POS = 0.0f;
 constexpr float BOOK_STRETCH_HOMING_VELOCITY = 100.0f;  // 正転でホーミング
 constexpr float BOOK_STRETCH_HOMING_CURRENT_THRESHOLD = 3000.0f;  // mA - 限界検出しきい値
 constexpr float BOOK_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;  // 電流しきい値確認のデバウンス周期数
+constexpr float BOOK_STRETCH_HOMING_BACKOFF = 360.0f;
 constexpr float BOOK_STRETCH_CONTROL_PERIOD_SEC = 0.01f;
 constexpr float BOOK_STRETCH_MAX_VELOCITY_RPM = 1200.0f;
 constexpr float BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC = 300.0f;
@@ -115,8 +116,8 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         if (motor_current_ma > BOOK_STRETCH_HOMING_CURRENT_THRESHOLD) {
             homing_current_count++;
             if (homing_current_count >= BOOK_STRETCH_HOMING_DEBOUNCE_CYCLES) {
-                // ホーミング完了：現在位置をオフセットとして記録
-                book_stretch_offset = pos_fb;
+                // ホーミング完了：逆方向へ360戻した位置を基準オフセットとして記録
+                book_stretch_offset = std::clamp(pos_fb - BOOK_STRETCH_HOMING_BACKOFF, BOOK_STRETCH_MIN_POS, BOOK_STRETCH_MAX_POS);
                 book_stretch_state = BookStretchMode::DRIVE;
                 homing_current_count = 0;
                 book_stretch_profile_target = pos_fb;
