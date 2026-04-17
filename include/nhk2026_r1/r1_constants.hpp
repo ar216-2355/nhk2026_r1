@@ -12,17 +12,8 @@ namespace Mode {
 namespace MotorId {
 	constexpr uint8_t OMUNI_LF = 1;
 	constexpr uint8_t OMUNI_LB = 2;
-	constexpr uint8_t OMUNI_RB = 3;
-	constexpr uint8_t OMUNI_RF = 4;
-
-	constexpr uint8_t ARM_RB = 5;
-	constexpr uint8_t ARM_RF = 6;
-	constexpr uint8_t BELT_B = 7;
-	constexpr uint8_t BELT_F = 8;
-	constexpr uint8_t ARM_LF = 9;
-	constexpr uint8_t ARM_LB = 10;
-
-	constexpr uint8_t ELEVATOR = 11;
+	constexpr uint8_t OMUNI_RB = 9;
+	constexpr uint8_t OMUNI_RF = 10;
 
 	constexpr uint8_t LIFT_LF = 3;
 	constexpr uint8_t LIFT_LB = 4;
