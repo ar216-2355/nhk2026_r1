@@ -35,8 +35,8 @@ class R1ControlNode : public rclcpp::Node {
   }
 
  private:
-     static constexpr float LIFT_RETRACT_POS = 0.0f;
-     static constexpr float LIFT_EXTEND_POS = 20000.0f;
+    static constexpr float LIFT_RETRACT_POS = -20000.0f;
+    static constexpr float LIFT_EXTEND_POS = 20000.0f;
      static constexpr float BOOK_RETRACT_POS = 0.0f;
      static constexpr float BOOK_EXTEND_POS = -60000.0f;
      static constexpr float POLE_RETRACT_POS = 0.0f;
@@ -59,6 +59,18 @@ class R1ControlNode : public rclcpp::Node {
     float target_lift_position_ = 0.0f;
     float target_book_stretch_position_ = 0.0f;
     float target_pole_stretch_position_ = 0.0f;
+
+    float estimate_lift_motion(float relative_target) const {
+        const float target_lf = std::clamp(lift_offset[0] + relative_target, minpos, maxpos);
+        const float target_lb = std::clamp(lift_offset[1] + relative_target, minpos, maxpos);
+        const float target_rb = std::clamp(lift_offset[2] - relative_target, rb_rf_minpos, rb_rf_maxpos);
+        const float target_rf = std::clamp(lift_offset[3] - relative_target, rb_rf_minpos, rb_rf_maxpos);
+
+        return std::fabs(target_lf - current_motors_[MotorId::LIFT_LF - 1].angle) +
+               std::fabs(target_lb - current_motors_[MotorId::LIFT_LB - 1].angle) +
+               std::fabs(target_rb - current_motors_[MotorId::LIFT_RB - 1].angle) +
+               std::fabs(target_rf - current_motors_[MotorId::LIFT_RF - 1].angle);
+    }
 
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) { latest_joy_ = *msg; }
 
@@ -114,7 +126,15 @@ class R1ControlNode : public rclcpp::Node {
 
             if (a_pressed && !prev_a_button_ && current_system_state_ == 2) {
                 lift_extended_ = !lift_extended_;
-                target_lift_position_ = lift_extended_ ? LIFT_EXTEND_POS : LIFT_RETRACT_POS;
+                float next_target = lift_extended_ ? LIFT_EXTEND_POS : LIFT_RETRACT_POS;
+
+                // クランプ後に無移動になる側を選んだ場合、反対側へフォールバックする。
+                if (estimate_lift_motion(next_target) < 20.0f) {
+                    lift_extended_ = !lift_extended_;
+                    next_target = lift_extended_ ? LIFT_EXTEND_POS : LIFT_RETRACT_POS;
+                }
+
+                target_lift_position_ = next_target;
             }
 
             if (b_pressed && !prev_b_button_ && current_system_state_ == 2) {
