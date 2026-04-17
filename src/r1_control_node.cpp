@@ -41,7 +41,6 @@ class R1ControlNode : public rclcpp::Node {
     float start_belt = 0;
     float current_belt = 0;
     bool kakuno_ok = false;
-    bool prev_start_button_ = false;
     bool prev_a_button_ = false;
     float target_lift_position_ = 0.0f;
 
@@ -83,14 +82,12 @@ class R1ControlNode : public rclcpp::Node {
         return;
         }
 
-        if (latest_joy_.buttons.size() > Joy::START) {
-            const bool start_pressed = latest_joy_.buttons[Joy::START];
-            const bool a_pressed = latest_joy_.buttons[Joy::A];
+        if (current_system_state_ != 2) {
+            target_lift_position_ = 0.0f;
+        }
 
-            if (start_pressed && !prev_start_button_) {
-                homing_lift();
-                target_lift_position_ = 0.0f;
-            }
+        if (latest_joy_.buttons.size() > Joy::A) {
+            const bool a_pressed = latest_joy_.buttons[Joy::A];
 
             if (a_pressed && !prev_a_button_ &&
                 lift_state[0] == SystemMode::DRIVE &&
@@ -100,20 +97,16 @@ class R1ControlNode : public rclcpp::Node {
                 target_lift_position_ = 10000.0f;
             }
 
-            prev_start_button_ = start_pressed;
             prev_a_button_ = a_pressed;
         }
 
         set_lift_position(
+            current_system_state_,
             target_lift_position_,
             current_motors_[MotorId::LIFT_LF - 1].angle,
             current_motors_[MotorId::LIFT_LB - 1].angle,
             current_motors_[MotorId::LIFT_RB - 1].angle,
             current_motors_[MotorId::LIFT_RF - 1].angle,
-            current_motors_[MotorId::LIFT_LF - 1].torque,
-            current_motors_[MotorId::LIFT_LB - 1].torque,
-            current_motors_[MotorId::LIFT_RB - 1].torque,
-            current_motors_[MotorId::LIFT_RF - 1].torque,
             packet);
 
         set_omni_velocity(
