@@ -87,9 +87,6 @@ class R1ControlNode : public rclcpp::Node {
         if (current_system_state_ != 2) {
             target_lift_position_ = 0.0f;
             target_book_stretch_position_ = 0.0f;
-            publish_stop(packet);
-            cmd_pub_->publish(packet);
-            return;
         }
 
         if (latest_joy_.buttons.size() > Joy::A) {
