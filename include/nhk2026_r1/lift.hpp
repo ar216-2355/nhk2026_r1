@@ -7,8 +7,6 @@
 
 enum class SystemMode {
     EMERGENCY,
-    HOMING,
-    HOMING_ASCEND,
     DRIVE
 };
 
@@ -25,12 +23,8 @@ float maxpos = 25585.0f; // 昇降の最大位置
 float minpos = 0.0f; // 昇降の最小位置(3番/4番)
 float rb_rf_maxpos = 0.0f; // 11番/12番の最大位置
 float rb_rf_minpos = -25585.0f; // 11番/12番の最小位置
-float homing_current_threshold = 1500.0f; // ホーミングとみなす電流の閾値[mA]
-float homing_ascend_time = 0.5f; // ホーミング完了後に少し上昇させる時間
-float homing_backoff[4] = {100.0f, 100.0f, 100.0f, 100.0f}; // ホーミング完了後に壁から離す量
-float homing_offset[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // position=0 の基準位置
-constexpr int homing_current_confirm_cycles = 5; // 連続判定回数(10ms*5=50ms)
-int homing_current_over_count[4] = {0, 0, 0, 0};
+float lift_offset[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // READY->DRIVE時の基準位置
+uint8_t lift_prev_system_state = 0;
 
 constexpr float lift_control_period_sec = 0.01f;
 constexpr float lift_max_velocity_rpm = 100.0f;
@@ -91,129 +85,45 @@ inline float update_lift_trapezoid(float final_target, float &profile_position, 
     return profile_position;
 }
 
-inline void homing_lift(){
-    lift_state[0] = SystemMode::HOMING;
-    lift_state[1] = SystemMode::HOMING;
-    lift_state[2] = SystemMode::HOMING;
-    lift_state[3] = SystemMode::HOMING;
-    homing_current_over_count[0] = 0;
-    homing_current_over_count[1] = 0;
-    homing_current_over_count[2] = 0;
-    homing_current_over_count[3] = 0;
-    reset_lift_profile();
-}
+inline bool set_lift_position(uint8_t system_state, float position, float LFpos_fb, float LBpos_fb, float RBpos_fb, float RFpos_fb, robomas_interfaces::msg::RobomasPacket& packet) {
+    if(lift_prev_system_state == 1 && system_state == 2) {
+        lift_state[0] = SystemMode::DRIVE;
+        lift_state[1] = SystemMode::DRIVE;
+        lift_state[2] = SystemMode::DRIVE;
+        lift_state[3] = SystemMode::DRIVE;
 
-inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, float RBpos_fb, float RFpos_fb, float LFcur_fb, float LBcur_fb, float RBcur_fb, float RFcur_fb, robomas_interfaces::msg::RobomasPacket& packet) {
+        lift_offset[0] = LFpos_fb;
+        lift_offset[1] = LBpos_fb;
+        lift_offset[2] = RBpos_fb;
+        lift_offset[3] = RFpos_fb;
+
+        lift_profile_target[0] = LFpos_fb;
+        lift_profile_target[1] = LBpos_fb;
+        lift_profile_target[2] = RBpos_fb;
+        lift_profile_target[3] = RFpos_fb;
+        lift_profile_velocity_rpm[0] = 0.0f;
+        lift_profile_velocity_rpm[1] = 0.0f;
+        lift_profile_velocity_rpm[2] = 0.0f;
+        lift_profile_velocity_rpm[3] = 0.0f;
+    } else if(system_state != 2) {
+        lift_state[0] = SystemMode::EMERGENCY;
+        lift_state[1] = SystemMode::EMERGENCY;
+        lift_state[2] = SystemMode::EMERGENCY;
+        lift_state[3] = SystemMode::EMERGENCY;
+        reset_lift_profile();
+    }
+    lift_prev_system_state = system_state;
+
     if((lift_state[0] == SystemMode::EMERGENCY) || (lift_state[1] == SystemMode::EMERGENCY) || (lift_state[2] == SystemMode::EMERGENCY) || (lift_state[3] == SystemMode::EMERGENCY)) {
         append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::CURRENT, 0.0f);
         append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::CURRENT, 0.0f);
         append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::CURRENT, 0.0f);
         append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::CURRENT, 0.0f);
-    } else if((lift_state[0] == SystemMode::HOMING) || (lift_state[1] == SystemMode::HOMING) || (lift_state[2] == SystemMode::HOMING) || (lift_state[3] == SystemMode::HOMING)) {
-        if(lift_state[0] == SystemMode::HOMING) {
-            if(std::fabs(LFcur_fb) > homing_current_threshold) {
-                homing_current_over_count[0]++;
-                if(homing_current_over_count[0] >= homing_current_confirm_cycles) {
-                    lift_state[0] = SystemMode::HOMING_ASCEND;
-                    homing_offset[0] = LFpos_fb + homing_backoff[0]; // LF/LBはホーミング方向(-)と逆向き(+)へ退避
-                    append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::CURRENT, 0.0f);
-                } else {
-                    append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::VELOCITY, -100.0f);
-                }
-            } else {
-                homing_current_over_count[0] = 0;
-                append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::VELOCITY, -100.0f);
-            }
-        } else if(lift_state[0] == SystemMode::HOMING_ASCEND) {
-            append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::CURRENT, 0.0f);
-        }
-        if(lift_state[1] == SystemMode::HOMING) {
-            if(std::fabs(LBcur_fb) > homing_current_threshold) {
-                homing_current_over_count[1]++;
-                if(homing_current_over_count[1] >= homing_current_confirm_cycles) {
-                    lift_state[1] = SystemMode::HOMING_ASCEND;
-                    homing_offset[1] = LBpos_fb + homing_backoff[1]; // LF/LBはホーミング方向(-)と逆向き(+)へ退避
-                    append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::CURRENT, 0.0f);
-                } else {
-                    append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::VELOCITY, -100.0f);
-                }
-            } else {
-                homing_current_over_count[1] = 0;
-                append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::VELOCITY, -100.0f);
-            }
-        } else if(lift_state[1] == SystemMode::HOMING_ASCEND) {
-            append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::CURRENT, 0.0f);
-        }
-        if(lift_state[2] == SystemMode::HOMING) {
-            if(std::fabs(RBcur_fb) > homing_current_threshold) {
-                homing_current_over_count[2]++;
-                if(homing_current_over_count[2] >= homing_current_confirm_cycles) {
-                    lift_state[2] = SystemMode::HOMING_ASCEND;
-                    homing_offset[2] = RBpos_fb - homing_backoff[2]; // RB/RFはホーミング方向(+)と逆向き(-)へ退避
-                    append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::CURRENT, 0.0f);
-                } else {
-                    append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::VELOCITY,  100.0f);
-                }
-            } else {
-                homing_current_over_count[2] = 0;
-                append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::VELOCITY,  100.0f);
-            }
-        } else if(lift_state[2] == SystemMode::HOMING_ASCEND) {
-            append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::CURRENT, 0.0f);
-        }
-        if(lift_state[3] == SystemMode::HOMING) {
-            if(std::fabs(RFcur_fb) > homing_current_threshold) {
-                homing_current_over_count[3]++;
-                if(homing_current_over_count[3] >= homing_current_confirm_cycles) {
-                    lift_state[3] = SystemMode::HOMING_ASCEND;
-                    homing_offset[3] = RFpos_fb - homing_backoff[3]; // RB/RFはホーミング方向(+)と逆向き(-)へ退避
-                    append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::CURRENT, 0.0f);
-                } else {
-                    append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::VELOCITY,  100.0f);
-                }
-            } else {
-                homing_current_over_count[3] = 0;
-                append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::VELOCITY,  100.0f);
-            }
-        } else if(lift_state[3] == SystemMode::HOMING_ASCEND) {
-            append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::CURRENT, 0.0f);
-        }
-    } else if((lift_state[0] == SystemMode::HOMING_ASCEND) && (lift_state[1] == SystemMode::HOMING_ASCEND) && (lift_state[2] == SystemMode::HOMING_ASCEND) && (lift_state[3] == SystemMode::HOMING_ASCEND)) {
-        const float ascend_target_LF = std::clamp(homing_offset[0], minpos, maxpos);
-        const float ascend_target_LB = std::clamp(homing_offset[1], minpos, maxpos);
-        const float ascend_target_RB = std::clamp(homing_offset[2], rb_rf_minpos, rb_rf_maxpos);
-        const float ascend_target_RF = std::clamp(homing_offset[3], rb_rf_minpos, rb_rf_maxpos);
-
-        append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::POSITION, ascend_target_LF);
-        append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::POSITION, ascend_target_LB);
-        append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::POSITION, ascend_target_RB);
-        append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::POSITION, ascend_target_RF);
-
-        const bool ascend_done =
-            std::abs(ascend_target_LF - LFpos_fb) < 10.0f &&
-            std::abs(ascend_target_LB - LBpos_fb) < 10.0f &&
-            std::abs(ascend_target_RB - RBpos_fb) < 10.0f &&
-            std::abs(ascend_target_RF - RFpos_fb) < 10.0f;
-
-        if(ascend_done) {
-            lift_state[0] = SystemMode::DRIVE;
-            lift_state[1] = SystemMode::DRIVE;
-            lift_state[2] = SystemMode::DRIVE;
-            lift_state[3] = SystemMode::DRIVE;
-            lift_profile_target[0] = LFpos_fb;
-            lift_profile_target[1] = LBpos_fb;
-            lift_profile_target[2] = RBpos_fb;
-            lift_profile_target[3] = RFpos_fb;
-            lift_profile_velocity_rpm[0] = 0.0f;
-            lift_profile_velocity_rpm[1] = 0.0f;
-            lift_profile_velocity_rpm[2] = 0.0f;
-            lift_profile_velocity_rpm[3] = 0.0f;
-        }
     } else if((lift_state[0] == SystemMode::DRIVE) && (lift_state[1] == SystemMode::DRIVE) && (lift_state[2] == SystemMode::DRIVE) && (lift_state[3] == SystemMode::DRIVE)) {
-        const float target_LF = std::clamp(homing_offset[0] + position, minpos, maxpos);
-        const float target_LB = std::clamp(homing_offset[1] + position, minpos, maxpos);
-        const float target_RB = std::clamp(homing_offset[2] - position, rb_rf_minpos, rb_rf_maxpos);
-        const float target_RF = std::clamp(homing_offset[3] - position, rb_rf_minpos, rb_rf_maxpos);
+        const float target_LF = std::clamp(lift_offset[0] + position, minpos, maxpos);
+        const float target_LB = std::clamp(lift_offset[1] + position, minpos, maxpos);
+        const float target_RB = std::clamp(lift_offset[2] - position, rb_rf_minpos, rb_rf_maxpos);
+        const float target_RF = std::clamp(lift_offset[3] - position, rb_rf_minpos, rb_rf_maxpos);
 
         const float profile_LF = update_lift_trapezoid(target_LF, lift_profile_target[0], lift_profile_velocity_rpm[0]);
         const float profile_LB = update_lift_trapezoid(target_LB, lift_profile_target[1], lift_profile_velocity_rpm[1]);
@@ -231,7 +141,10 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
             return true; // 目標位置に到達したとみなす
         }
     } else {
-        reset_lift_profile();
+        append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::CURRENT, 0.0f);
+        append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::CURRENT, 0.0f);
+        append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::CURRENT, 0.0f);
+        append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::CURRENT, 0.0f);
     }
     return false;
 }
