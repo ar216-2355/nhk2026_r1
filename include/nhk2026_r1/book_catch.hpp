@@ -98,8 +98,8 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         packet.motors.push_back(command);
     };
 
-    // READY -> DRIVE edge detection: ホーミング開始
-    if (book_stretch_prev_system_state == 1 && system_state == 2) {  // READY -> DRIVE transition
+    // 非DRIVE -> DRIVE edge detection: ホーミング開始
+    if (book_stretch_prev_system_state != 2 && system_state == 2) {
         book_stretch_state = BookStretchMode::HOMING;
         book_stretch_offset = 0.0f;
         homing_current_count = 0;

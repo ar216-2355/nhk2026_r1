@@ -99,8 +99,8 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 		packet.motors.push_back(command);
 	};
 
-	// READY -> DRIVE edge detection: ホーミング開始
-	if (pole_stretch_prev_system_state == 1 && system_state == 2) {
+	// 非DRIVE -> DRIVE edge detection: ホーミング開始
+	if (pole_stretch_prev_system_state != 2 && system_state == 2) {
 		pole_stretch_state = PoleStretchMode::HOMING;
 		pole_stretch_offset = 0.0f;
 		pole_homing_current_count = 0;
