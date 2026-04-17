@@ -25,6 +25,7 @@ constexpr float POLE_STRETCH_MAX_POS = 14421.0f;
 constexpr float POLE_STRETCH_HOMING_VELOCITY = -100.0f;  // 逆転でホーミング
 constexpr float POLE_STRETCH_HOMING_CURRENT_THRESHOLD = 3000.0f;  // mA
 constexpr float POLE_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;
+constexpr float POLE_STRETCH_HOMING_BACKOFF = 360.0f;
 constexpr float POLE_STRETCH_CONTROL_PERIOD_SEC = 0.01f;
 constexpr float POLE_STRETCH_MAX_VELOCITY_RPM = 1200.0f;
 constexpr float POLE_STRETCH_MAX_ACCEL_RPM_PER_SEC = 300.0f;
@@ -111,7 +112,8 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 		if (std::fabs(motor_current_ma) > POLE_STRETCH_HOMING_CURRENT_THRESHOLD) {
 			pole_homing_current_count++;
 			if (pole_homing_current_count >= POLE_STRETCH_HOMING_DEBOUNCE_CYCLES) {
-				pole_stretch_offset = pos_fb;
+				// ホーミング完了：逆方向へ360戻した位置を基準オフセットとして記録
+				pole_stretch_offset = std::clamp(pos_fb + POLE_STRETCH_HOMING_BACKOFF, POLE_STRETCH_MIN_POS, POLE_STRETCH_MAX_POS);
 				pole_stretch_state = PoleStretchMode::DRIVE;
 				pole_homing_current_count = 0;
 				pole_stretch_profile_target = pos_fb;
