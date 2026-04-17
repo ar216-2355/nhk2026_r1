@@ -27,7 +27,8 @@ float rb_rf_maxpos = 0.0f; // 11番/12番の最大位置
 float rb_rf_minpos = -25585.0f; // 11番/12番の最小位置
 float homing_current_threshold = 3.0f; // ホーミングとみなす電流の閾値
 float homing_ascend_time = 0.5f; // ホーミング完了後に少し上昇させる時間
-float homing_offset[4] = {100.0f, 100.0f, 100.0f, 100.0f}; // ホーミング完了後の位置のオフセット
+float homing_backoff[4] = {100.0f, 100.0f, 100.0f, 100.0f}; // ホーミング完了後に壁から離す量
+float homing_offset[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // position=0 の基準位置
 
 constexpr float lift_control_period_sec = 0.01f;
 constexpr float lift_max_velocity_rpm = 100.0f;
@@ -106,7 +107,7 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
         if(lift_state[0] == SystemMode::HOMING) {
             if(LFcur_fb > homing_current_threshold) {
                 lift_state[0] = SystemMode::HOMING_ASCEND;
-                homing_offset[0] = LFpos_fb - homing_offset[0]; // ホーミング完了位置を基準にオフセットを計算
+                homing_offset[0] = LFpos_fb + homing_backoff[0]; // LF/LBはホーミング方向(-)と逆向き(+)へ退避
                 append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::CURRENT, 0.0f);
             } else {
                 append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::VELOCITY, -100.0f);
@@ -115,7 +116,7 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
         if(lift_state[1] == SystemMode::HOMING) {
             if(LBcur_fb > homing_current_threshold) {
                 lift_state[1] = SystemMode::HOMING_ASCEND;
-                homing_offset[1] = LBpos_fb - homing_offset[1]; // ホーミング完了位置を基準にオフセットを計算
+                homing_offset[1] = LBpos_fb + homing_backoff[1]; // LF/LBはホーミング方向(-)と逆向き(+)へ退避
                 append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::CURRENT, 0.0f);
             } else {
                 append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::VELOCITY, -100.0f);
@@ -124,7 +125,7 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
         if(lift_state[2] == SystemMode::HOMING) {
             if(RBcur_fb > homing_current_threshold) {
                 lift_state[2] = SystemMode::HOMING_ASCEND;
-                homing_offset[2] = RBpos_fb - homing_offset[2]; // ホーミング完了位置を基準にオフセットを計算
+                homing_offset[2] = RBpos_fb - homing_backoff[2]; // RB/RFはホーミング方向(+)と逆向き(-)へ退避
                 append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::CURRENT, 0.0f);
             } else {
                 append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::VELOCITY,  100.0f);
@@ -133,7 +134,7 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
         if(lift_state[3] == SystemMode::HOMING) {
             if(RFcur_fb > homing_current_threshold) {
                 lift_state[3] = SystemMode::HOMING_ASCEND;
-                homing_offset[3] = RFpos_fb - homing_offset[3]; // ホーミング完了位置を基準にオフセットを計算
+                homing_offset[3] = RFpos_fb - homing_backoff[3]; // RB/RFはホーミング方向(+)と逆向き(-)へ退避
                 append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::CURRENT, 0.0f);
             } else {
                 append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::VELOCITY,  100.0f);
