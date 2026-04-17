@@ -8,6 +8,7 @@
 enum class PoleStretchMode {
 	EMERGENCY,
 	HOMING,
+	HOMING_BACKOFF,
 	DRIVE
 };
 
@@ -18,6 +19,7 @@ uint8_t pole_stretch_prev_system_state = 0;
 int pole_homing_current_count = 0;
 float pole_stretch_profile_target = 0.0f;
 float pole_stretch_profile_velocity_rpm = 0.0f;
+float pole_stretch_backoff_target = 0.0f;
 
 // Control parameters
 constexpr float POLE_STRETCH_MIN_POS = 0.0f;
@@ -112,15 +114,23 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 		if (std::fabs(motor_current_ma) > POLE_STRETCH_HOMING_CURRENT_THRESHOLD) {
 			pole_homing_current_count++;
 			if (pole_homing_current_count >= POLE_STRETCH_HOMING_DEBOUNCE_CYCLES) {
-				// ホーミング完了：逆方向へ360戻した位置を基準オフセットとして記録
-				pole_stretch_offset = std::clamp(pos_fb + POLE_STRETCH_HOMING_BACKOFF, POLE_STRETCH_MIN_POS, POLE_STRETCH_MAX_POS);
-				pole_stretch_state = PoleStretchMode::DRIVE;
+				// ホーミング完了後、検出位置から必ず360だけ戻す
+				pole_stretch_backoff_target = pos_fb + POLE_STRETCH_HOMING_BACKOFF;
+				pole_stretch_state = PoleStretchMode::HOMING_BACKOFF;
 				pole_homing_current_count = 0;
 				pole_stretch_profile_target = pos_fb;
 				pole_stretch_profile_velocity_rpm = 0.0f;
 			}
 		} else if (pole_homing_current_count > 0) {
 			pole_homing_current_count = 0;
+		}
+	} else if (pole_stretch_state == PoleStretchMode::HOMING_BACKOFF && system_state == 2) {
+		const float profile_pos = update_pole_stretch_trapezoid(pole_stretch_backoff_target);
+		append_command(MotorId::POLE_STRETCH, Mode::POSITION, profile_pos);
+
+		if (std::fabs(pole_stretch_backoff_target - pos_fb) <= POLE_STRETCH_POSITION_TOLERANCE) {
+			pole_stretch_offset = pole_stretch_backoff_target;
+			pole_stretch_state = PoleStretchMode::DRIVE;
 		}
 	} else if (pole_stretch_state == PoleStretchMode::DRIVE && system_state == 2) {
 		float target_pos = pole_stretch_offset + position;
