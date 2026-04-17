@@ -114,7 +114,7 @@ class R1ControlNode : public rclcpp::Node {
 
             if (x_pressed && !prev_x_button_) {
                 target_pole_stretch_position_ =
-                    (std::fabs(target_pole_stretch_position_ - 0.0f) < 1.0f) ? -14000.0f : -360.0f;
+                    (std::fabs(target_pole_stretch_position_ - 0.0f) < 1.0f) ? 14000.0f : 360.0f;
             }
 
             prev_a_button_ = a_pressed;
