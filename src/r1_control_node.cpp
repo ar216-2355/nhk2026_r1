@@ -49,6 +49,7 @@ class R1ControlNode : public rclcpp::Node {
     bool prev_a_button_ = false;
     bool prev_b_button_ = false;
     bool prev_x_button_ = false;
+    bool prev_y_button_ = false;
     float target_lift_position_ = 0.0f;
     float target_book_stretch_position_ = 0.0f;
     float target_pole_stretch_position_ = 0.0f;
@@ -103,7 +104,7 @@ class R1ControlNode : public rclcpp::Node {
             const bool a_pressed = latest_joy_.buttons[Joy::A];
             const bool b_pressed = latest_joy_.buttons[Joy::B];
             const bool x_pressed = latest_joy_.buttons[Joy::X];
-
+            const bool y_pressed = latest_joy_.buttons[Joy::Y];
             if (a_pressed && !prev_a_button_ &&
                 lift_state[0] == SystemMode::DRIVE &&
                 lift_state[1] == SystemMode::DRIVE &&
@@ -112,19 +113,24 @@ class R1ControlNode : public rclcpp::Node {
                 target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 0.0f : 20000.0f;
             }
 
-                if (b_pressed && !prev_b_button_ && current_system_state_ == 2) {
+            if (b_pressed && !prev_b_button_ && current_system_state_ == 2) {
                 target_book_stretch_position_ =
                     (std::fabs(target_book_stretch_position_ - (-60000.0f)) < 1.0f) ? 0.0f : -60000.0f;
             }
 
-                if (x_pressed && !prev_x_button_ && current_system_state_ == 2) {
+            if (x_pressed && !prev_x_button_ && current_system_state_ == 2) {
                 target_book_stretch_angle = (target_book_stretch_angle == 180U) ? 90U : 180U;
                 target_pole_stretch_angle = (target_pole_stretch_angle == 180U) ? 90U : 180U;
+            }
+
+            if (y_pressed && !prev_y_button_ && current_system_state_ == 2) {
+                target_book_catch_current = (target_book_catch_current == 0.0f) ? 0.25f : 0.0f;
             }
 
             prev_a_button_ = a_pressed;
             prev_b_button_ = b_pressed;
             prev_x_button_ = x_pressed;
+            prev_y_button_ = y_pressed;
         }
 
         set_lift_position(
@@ -142,9 +148,9 @@ class R1ControlNode : public rclcpp::Node {
             current_motors_[MotorId::BOOK_STRETCH - 1].angle,
             current_motors_[MotorId::BOOK_STRETCH - 1].torque,
             packet);
-
         servo_book_stretch(target_book_stretch_angle, can_pub_);
         start_can_send_book(can_pub_);
+        dc_book_catch(target_book_catch_current, can_pub_);
 
         set_pole_stretch(
             current_system_state_,
@@ -152,7 +158,6 @@ class R1ControlNode : public rclcpp::Node {
             current_motors_[MotorId::POLE_STRETCH - 1].angle,
             current_motors_[MotorId::POLE_STRETCH - 1].torque,
             packet);
-
         servo_pole_stretch(target_pole_stretch_angle, can_pub_);
 
         set_omni_velocity(
