@@ -35,6 +35,13 @@ class R1ControlNode : public rclcpp::Node {
   }
 
  private:
+     static constexpr float LIFT_RETRACT_POS = 0.0f;
+     static constexpr float LIFT_EXTEND_POS = 20000.0f;
+     static constexpr float BOOK_RETRACT_POS = 0.0f;
+     static constexpr float BOOK_EXTEND_POS = -60000.0f;
+     static constexpr float POLE_RETRACT_POS = 0.0f;
+     static constexpr float POLE_EXTEND_POS = 14000.0f;
+
     MotorData current_motors_[16]; // 16台分のモーター状態を入れる棚
     uint8_t current_system_state_ = 0;      // 0:EMERGENCY, 1:READY, 2:DRIVE
 
@@ -46,6 +53,9 @@ class R1ControlNode : public rclcpp::Node {
     bool prev_a_button_ = false;
     bool prev_b_button_ = false;
     bool prev_x_button_ = false;
+    bool lift_extended_ = false;
+    bool book_extended_ = false;
+    bool pole_extended_ = false;
     float target_lift_position_ = 0.0f;
     float target_book_stretch_position_ = 0.0f;
     float target_pole_stretch_position_ = 0.0f;
@@ -89,9 +99,12 @@ class R1ControlNode : public rclcpp::Node {
         }
 
         if (current_system_state_ != 2) {
-            target_lift_position_ = 0.0f;
-            target_book_stretch_position_ = 0.0f;
-            target_pole_stretch_position_ = 0.0f;
+            lift_extended_ = false;
+            book_extended_ = false;
+            pole_extended_ = false;
+            target_lift_position_ = LIFT_RETRACT_POS;
+            target_book_stretch_position_ = BOOK_RETRACT_POS;
+            target_pole_stretch_position_ = POLE_RETRACT_POS;
         }
 
         if (latest_joy_.buttons.size() > Joy::X) {
@@ -100,17 +113,18 @@ class R1ControlNode : public rclcpp::Node {
             const bool x_pressed = latest_joy_.buttons[Joy::X];
 
             if (a_pressed && !prev_a_button_ && current_system_state_ == 2) {
-                target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 360.0f : 20000.0f;
+                lift_extended_ = !lift_extended_;
+                target_lift_position_ = lift_extended_ ? LIFT_EXTEND_POS : LIFT_RETRACT_POS;
             }
 
-            if (b_pressed && !prev_b_button_) {
-                target_book_stretch_position_ =
-                    (std::fabs(target_book_stretch_position_ - 0.0f) < 1.0f) ? -60000.0f : -360.0f;
+            if (b_pressed && !prev_b_button_ && current_system_state_ == 2) {
+                book_extended_ = !book_extended_;
+                target_book_stretch_position_ = book_extended_ ? BOOK_EXTEND_POS : BOOK_RETRACT_POS;
             }
 
-            if (x_pressed && !prev_x_button_) {
-                target_pole_stretch_position_ =
-                    (std::fabs(target_pole_stretch_position_ - 0.0f) < 1.0f) ? 14000.0f : 360.0f;
+            if (x_pressed && !prev_x_button_ && current_system_state_ == 2) {
+                pole_extended_ = !pole_extended_;
+                target_pole_stretch_position_ = pole_extended_ ? POLE_EXTEND_POS : POLE_RETRACT_POS;
             }
 
             prev_a_button_ = a_pressed;
