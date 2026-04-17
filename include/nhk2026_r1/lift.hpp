@@ -171,18 +171,36 @@ inline bool set_lift_position(float position, float LFpos_fb, float LBpos_fb, fl
             }
         }
     } else if((lift_state[0] == SystemMode::HOMING_ASCEND) && (lift_state[1] == SystemMode::HOMING_ASCEND) && (lift_state[2] == SystemMode::HOMING_ASCEND) && (lift_state[3] == SystemMode::HOMING_ASCEND)) {
-        lift_state[0] = SystemMode::DRIVE;
-        lift_state[1] = SystemMode::DRIVE;
-        lift_state[2] = SystemMode::DRIVE;
-        lift_state[3] = SystemMode::DRIVE;
-        lift_profile_target[0] = LFpos_fb;
-        lift_profile_target[1] = LBpos_fb;
-        lift_profile_target[2] = RBpos_fb;
-        lift_profile_target[3] = RFpos_fb;
-        lift_profile_velocity_rpm[0] = 0.0f;
-        lift_profile_velocity_rpm[1] = 0.0f;
-        lift_profile_velocity_rpm[2] = 0.0f;
-        lift_profile_velocity_rpm[3] = 0.0f;
+        const float ascend_target_LF = std::clamp(homing_offset[0], minpos, maxpos);
+        const float ascend_target_LB = std::clamp(homing_offset[1], minpos, maxpos);
+        const float ascend_target_RB = std::clamp(homing_offset[2], rb_rf_minpos, rb_rf_maxpos);
+        const float ascend_target_RF = std::clamp(homing_offset[3], rb_rf_minpos, rb_rf_maxpos);
+
+        append_motor_command(packet.motors, MotorId::LIFT_LF, Mode::POSITION, ascend_target_LF);
+        append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::POSITION, ascend_target_LB);
+        append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::POSITION, ascend_target_RB);
+        append_motor_command(packet.motors, MotorId::LIFT_RF, Mode::POSITION, ascend_target_RF);
+
+        const bool ascend_done =
+            std::abs(ascend_target_LF - LFpos_fb) < 10.0f &&
+            std::abs(ascend_target_LB - LBpos_fb) < 10.0f &&
+            std::abs(ascend_target_RB - RBpos_fb) < 10.0f &&
+            std::abs(ascend_target_RF - RFpos_fb) < 10.0f;
+
+        if(ascend_done) {
+            lift_state[0] = SystemMode::DRIVE;
+            lift_state[1] = SystemMode::DRIVE;
+            lift_state[2] = SystemMode::DRIVE;
+            lift_state[3] = SystemMode::DRIVE;
+            lift_profile_target[0] = LFpos_fb;
+            lift_profile_target[1] = LBpos_fb;
+            lift_profile_target[2] = RBpos_fb;
+            lift_profile_target[3] = RFpos_fb;
+            lift_profile_velocity_rpm[0] = 0.0f;
+            lift_profile_velocity_rpm[1] = 0.0f;
+            lift_profile_velocity_rpm[2] = 0.0f;
+            lift_profile_velocity_rpm[3] = 0.0f;
+        }
     } else if((lift_state[0] == SystemMode::DRIVE) && (lift_state[1] == SystemMode::DRIVE) && (lift_state[2] == SystemMode::DRIVE) && (lift_state[3] == SystemMode::DRIVE)) {
         const float target_LF = std::clamp(homing_offset[0] + position, minpos, maxpos);
         const float target_LB = std::clamp(homing_offset[1] + position, minpos, maxpos);
