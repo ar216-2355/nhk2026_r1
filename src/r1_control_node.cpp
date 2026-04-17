@@ -46,6 +46,7 @@ class R1ControlNode : public rclcpp::Node {
     bool prev_a_button_ = false;
     bool prev_b_button_ = false;
     bool prev_x_button_ = false;
+    uint8_t prev_system_state_ = 0;
     float target_lift_position_ = 0.0f;
     float target_book_stretch_position_ = 0.0f;
     float target_pole_stretch_position_ = 0.0f;
@@ -88,7 +89,7 @@ class R1ControlNode : public rclcpp::Node {
         return;
         }
 
-        if (current_system_state_ != 2) {
+        if (prev_system_state_ == 2 && current_system_state_ != 2) {
             target_lift_position_ = 0.0f;
             target_book_stretch_position_ = 0.0f;
             target_pole_stretch_position_ = 0.0f;
@@ -99,7 +100,7 @@ class R1ControlNode : public rclcpp::Node {
             const bool b_pressed = latest_joy_.buttons[Joy::B];
             const bool x_pressed = latest_joy_.buttons[Joy::X];
 
-            if (a_pressed && !prev_a_button_ && current_system_state_ == 2) {
+            if (a_pressed && !prev_a_button_) {
                 target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 360.0f : 20000.0f;
             }
 
@@ -116,6 +117,11 @@ class R1ControlNode : public rclcpp::Node {
             prev_a_button_ = a_pressed;
             prev_b_button_ = b_pressed;
             prev_x_button_ = x_pressed;
+        } else {
+            // 入力配列が短いフレームでエッジ状態が残留しないようにする
+            prev_a_button_ = false;
+            prev_b_button_ = false;
+            prev_x_button_ = false;
         }
 
         set_lift_position(
@@ -146,6 +152,8 @@ class R1ControlNode : public rclcpp::Node {
             latest_joy_.axes[Joy::L_STICK_Y] * 1500, 
             (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 500.0f, 
             packet);
+
+        prev_system_state_ = current_system_state_;
         
         cmd_pub_->publish(packet);
     }
