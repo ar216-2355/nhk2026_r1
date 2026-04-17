@@ -107,14 +107,14 @@ class R1ControlNode : public rclcpp::Node {
                 target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 0.0f : 20000.0f;
             }
 
-            if (b_pressed && !prev_b_button_) {
+                if (b_pressed && !prev_b_button_ && current_system_state_ == 2) {
                 target_book_stretch_position_ =
-                    (std::fabs(target_book_stretch_position_ - 0.0f) < 1.0f) ? -60000.0f : -360.0f;
+                    (std::fabs(target_book_stretch_position_ - (-60000.0f)) < 1.0f) ? 0.0f : -60000.0f;
             }
 
-            if (x_pressed && !prev_x_button_) {
+                if (x_pressed && !prev_x_button_ && current_system_state_ == 2) {
                 target_pole_stretch_position_ =
-                    (std::fabs(target_pole_stretch_position_ - 0.0f) < 1.0f) ? 14000.0f : 360.0f;
+                    (std::fabs(target_pole_stretch_position_ - 14000.0f) < 1.0f) ? 0.0f : 14000.0f;
             }
 
             prev_a_button_ = a_pressed;
