@@ -26,7 +26,7 @@ uint8_t lift_prev_system_state = 0;
 
 constexpr float lift_control_period_sec = 0.01f;
 constexpr float lift_max_velocity_rpm = 5000.0f;
-constexpr float lift_max_accel_rpm_per_sec = 300.0f;
+constexpr float lift_max_accel_rpm_per_sec = 1200.0f;
 constexpr float lift_degrees_per_rpm = 6.0f;
 constexpr float lift_position_tolerance = 5.0f;
 constexpr float lift_velocity_tolerance_rpm = 1.0f;
