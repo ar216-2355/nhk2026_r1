@@ -86,7 +86,7 @@ inline float update_lift_trapezoid(float final_target, float &profile_position, 
 }
 
 inline bool set_lift_position(uint8_t system_state, float position, float LFpos_fb, float LBpos_fb, float RBpos_fb, float RFpos_fb, robomas_interfaces::msg::RobomasPacket& packet) {
-    if(lift_prev_system_state == 1 && system_state == 2) {
+    if(lift_prev_system_state != 2 && system_state == 2) {
         lift_state[0] = SystemMode::DRIVE;
         lift_state[1] = SystemMode::DRIVE;
         lift_state[2] = SystemMode::DRIVE;

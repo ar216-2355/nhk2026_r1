@@ -99,11 +99,7 @@ class R1ControlNode : public rclcpp::Node {
             const bool b_pressed = latest_joy_.buttons[Joy::B];
             const bool x_pressed = latest_joy_.buttons[Joy::X];
 
-            if (a_pressed && !prev_a_button_ &&
-                lift_state[0] == SystemMode::DRIVE &&
-                lift_state[1] == SystemMode::DRIVE &&
-                lift_state[2] == SystemMode::DRIVE &&
-                lift_state[3] == SystemMode::DRIVE) {
+            if (a_pressed && !prev_a_button_ && current_system_state_ == 2) {
                 target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 360.0f : 20000.0f;
             }
 
