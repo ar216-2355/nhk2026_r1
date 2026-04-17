@@ -13,6 +13,7 @@
 #include "nhk2026_r1/r1_constants.hpp"
 #include "nhk2026_r1/omuni.hpp"
 #include "nhk2026_r1/lift.hpp"
+#include "nhk2026_r1/book_catch.hpp"
 
 using namespace std::chrono_literals;
 
@@ -43,6 +44,7 @@ class R1ControlNode : public rclcpp::Node {
     bool kakuno_ok = false;
     bool prev_a_button_ = false;
     float target_lift_position_ = 0.0f;
+    float target_book_stretch_position_ = 0.0f;
 
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) { latest_joy_ = *msg; }
 
@@ -84,6 +86,10 @@ class R1ControlNode : public rclcpp::Node {
 
         if (current_system_state_ != 2) {
             target_lift_position_ = 0.0f;
+            target_book_stretch_position_ = 0.0f;
+            publish_stop(packet);
+            cmd_pub_->publish(packet);
+            return;
         }
 
         if (latest_joy_.buttons.size() > Joy::A) {
@@ -95,6 +101,7 @@ class R1ControlNode : public rclcpp::Node {
                 lift_state[2] == SystemMode::DRIVE &&
                 lift_state[3] == SystemMode::DRIVE) {
                 target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 360.0f : 20000.0f;
+                target_book_stretch_position_ = (std::fabs(target_book_stretch_position_ - 0.0f) < 1.0f) ? -14000.0f : -360.0f;
             }
 
             prev_a_button_ = a_pressed;
@@ -107,6 +114,13 @@ class R1ControlNode : public rclcpp::Node {
             current_motors_[MotorId::LIFT_LB - 1].angle,
             current_motors_[MotorId::LIFT_RB - 1].angle,
             current_motors_[MotorId::LIFT_RF - 1].angle,
+            packet);
+
+        set_book_stretch(
+            current_system_state_,
+            target_book_stretch_position_,
+            current_motors_[MotorId::BOOK_STRETCH - 1].angle,
+            current_motors_[MotorId::BOOK_STRETCH - 1].torque,
             packet);
 
         set_omni_velocity(
