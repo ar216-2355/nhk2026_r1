@@ -19,10 +19,8 @@ void append_motor_command(std::vector<robomas_interfaces::msg::MotorCommand> &mo
 }
 
 SystemMode lift_state[4] = {SystemMode::EMERGENCY, SystemMode::EMERGENCY, SystemMode::EMERGENCY, SystemMode::EMERGENCY}; // 4つのモーターの状態を管理
-float maxpos = 25585.0f; // 昇降の最大位置
-float minpos = 0.0f; // 昇降の最小位置(3番/4番)
-float rb_rf_maxpos = 0.0f; // 11番/12番の最大位置
-float rb_rf_minpos = -25585.0f; // 11番/12番の最小位置
+constexpr float lift_min_relative_pos = 0.0f;      // READY->DRIVE時を0とした相対最小位置
+constexpr float lift_max_relative_pos = 25585.0f;  // READY->DRIVE時を0とした相対最大位置
 float lift_offset[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // READY->DRIVE時の基準位置
 uint8_t lift_prev_system_state = 0;
 
@@ -120,10 +118,12 @@ inline bool set_lift_position(uint8_t system_state, float position, float LFpos_
         append_motor_command(packet.motors, MotorId::LIFT_LB, Mode::CURRENT, 0.0f);
         append_motor_command(packet.motors, MotorId::LIFT_RB, Mode::CURRENT, 0.0f);
     } else if((lift_state[0] == SystemMode::DRIVE) && (lift_state[1] == SystemMode::DRIVE) && (lift_state[2] == SystemMode::DRIVE) && (lift_state[3] == SystemMode::DRIVE)) {
-        const float target_LF = std::clamp(lift_offset[0] + position, minpos, maxpos);
-        const float target_LB = std::clamp(lift_offset[1] + position, minpos, maxpos);
-        const float target_RB = std::clamp(lift_offset[2] - position, rb_rf_minpos, rb_rf_maxpos);
-        const float target_RF = std::clamp(lift_offset[3] - position, rb_rf_minpos, rb_rf_maxpos);
+        // positionは「READY->DRIVE時の最下点=0」の相対目標として扱う。
+        const float target_relative = std::clamp(position, lift_min_relative_pos, lift_max_relative_pos);
+        const float target_LF = lift_offset[0] + target_relative;
+        const float target_LB = lift_offset[1] + target_relative;
+        const float target_RB = lift_offset[2] - target_relative;
+        const float target_RF = lift_offset[3] - target_relative;
 
         const float profile_LF = update_lift_trapezoid(target_LF, lift_profile_target[0], lift_profile_velocity_rpm[0]);
         const float profile_LB = update_lift_trapezoid(target_LB, lift_profile_target[1], lift_profile_velocity_rpm[1]);

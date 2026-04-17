@@ -104,7 +104,7 @@ class R1ControlNode : public rclcpp::Node {
                 lift_state[1] == SystemMode::DRIVE &&
                 lift_state[2] == SystemMode::DRIVE &&
                 lift_state[3] == SystemMode::DRIVE) {
-                target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 360.0f : 20000.0f;
+                target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 0.0f : 20000.0f;
             }
 
             if (b_pressed && !prev_b_button_) {
