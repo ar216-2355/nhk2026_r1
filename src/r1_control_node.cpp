@@ -53,6 +53,7 @@ class R1ControlNode : public rclcpp::Node {
     float target_book_stretch_position_ = 0.0f;
     float target_pole_stretch_position_ = 0.0f;
     uint16_t target_book_stretch_angle = 0;
+    uint16_t target_pole_stretch_angle = 0;
 
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) { latest_joy_ = *msg; }
 
@@ -118,6 +119,7 @@ class R1ControlNode : public rclcpp::Node {
 
                 if (x_pressed && !prev_x_button_ && current_system_state_ == 2) {
                 target_book_stretch_angle = (target_book_stretch_angle == 0U) ? 90U : 180U;
+                target_pole_stretch_angle = (target_pole_stretch_angle == 0U) ? 90U : 180U;
             }
 
             prev_a_button_ = a_pressed;
@@ -149,6 +151,8 @@ class R1ControlNode : public rclcpp::Node {
             current_motors_[MotorId::POLE_STRETCH - 1].angle,
             current_motors_[MotorId::POLE_STRETCH - 1].torque,
             packet);
+
+        servo_pole_stretch(target_pole_stretch_angle, can_pub_);
 
         set_omni_velocity(
             latest_joy_.axes[Joy::L_STICK_X] * -1500, 
