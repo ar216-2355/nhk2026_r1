@@ -25,7 +25,7 @@ float maxpos = 25585.0f; // 昇降の最大位置
 float minpos = 0.0f; // 昇降の最小位置(3番/4番)
 float rb_rf_maxpos = 0.0f; // 11番/12番の最大位置
 float rb_rf_minpos = -25585.0f; // 11番/12番の最小位置
-float homing_current_threshold = 1.5f; // ホーミングとみなす電流の閾値
+float homing_current_threshold = 3.0f; // ホーミングとみなす電流の閾値
 float homing_ascend_time = 0.5f; // ホーミング完了後に少し上昇させる時間
 float homing_offset[4] = {100.0f, 100.0f, 100.0f, 100.0f}; // ホーミング完了後の位置のオフセット
 
