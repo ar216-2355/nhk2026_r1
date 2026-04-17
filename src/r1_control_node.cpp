@@ -144,6 +144,7 @@ class R1ControlNode : public rclcpp::Node {
             packet);
 
         servo_book_stretch(target_book_stretch_angle, can_pub_);
+        start_can_send_book(can_pub_);
 
         set_pole_stretch(
             current_system_state_,

@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -41,6 +42,8 @@ constexpr float BOOK_STRETCH_POSITION_TOLERANCE = 5.0f;
 constexpr float BOOK_STRETCH_VELOCITY_TOLERANCE_RPM = 1.0f;
 
 inline uint16_t prev_book_stretch_angle = 0xFFFF;
+inline float prev_book_catch_current = 0.0f;
+bool allready_sent_can_send_book = false;
 
 inline void reset_book_stretch_profile() {
     book_stretch_profile_target = 0.0f;
@@ -189,5 +192,45 @@ inline void servo_book_stretch(
     msg.id = 0x301;
     msg.dlc = 8;
     msg.data = {b, a, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+    can_pub->publish(msg);
+}
+
+inline void start_can_send_book(const rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr& can_pub){
+    if (!can_pub || allready_sent_can_send_book) {
+        return;
+    }
+    auto msg = robomas_interfaces::msg::CanFrame();
+    msg.id = 0x160;
+    msg.dlc = 1;
+    msg.data = {0x04};
+    can_pub->publish(msg);
+    allready_sent_can_send_book = true;
+}
+
+inline void dc_book_catch(
+    float current,
+    const rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr& can_pub) {
+    if (!can_pub) {
+        return;
+    }
+
+    if (prev_book_catch_current == current) {
+        return; // 電流が前回と同じならコマンドを送らない
+    } else {
+        prev_book_catch_current = current;
+    }
+
+    uint32_t raw = 0;
+    std::memcpy(&raw, &current, sizeof(raw));
+
+    auto msg = robomas_interfaces::msg::CanFrame();
+    msg.id = 0x161;
+    msg.dlc = 4;
+    msg.data = {
+        static_cast<uint8_t>((raw >> 24) & 0xFF),
+        static_cast<uint8_t>((raw >> 16) & 0xFF),
+        static_cast<uint8_t>((raw >> 8) & 0xFF),
+        static_cast<uint8_t>(raw & 0xFF)
+    };
     can_pub->publish(msg);
 }
