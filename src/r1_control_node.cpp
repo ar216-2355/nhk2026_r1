@@ -118,8 +118,8 @@ class R1ControlNode : public rclcpp::Node {
             }
 
                 if (x_pressed && !prev_x_button_ && current_system_state_ == 2) {
-                target_book_stretch_angle = (target_book_stretch_angle == 0U) ? 90U : 180U;
-                target_pole_stretch_angle = (target_pole_stretch_angle == 0U) ? 90U : 180U;
+                target_book_stretch_angle = (target_book_stretch_angle == 180U) ? 90U : 180U;
+                target_pole_stretch_angle = (target_pole_stretch_angle == 180U) ? 90U : 180U;
             }
 
             prev_a_button_ = a_pressed;
