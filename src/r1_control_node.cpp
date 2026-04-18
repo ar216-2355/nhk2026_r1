@@ -157,9 +157,10 @@ class R1ControlNode : public rclcpp::Node {
                     denjiben_catch = 1; // 電磁弁のコマンド
                     break;
                 case 3:
-                    target_lift_position_ = 18000.0f; // 昇降位置 new
+                    denjiben_catch = 0; // 電磁弁のコマンド
                     break;
                 case 4:
+                    target_lift_position_ = 18000.0f; // 昇降位置 new
                     break;
                 case 5:
                     break;
