@@ -248,15 +248,17 @@ class R1ControlNode : public rclcpp::Node {
                 case 24: // 電流を０にして把持を開いたままにする
                     target_book_catch_current = 0.0f;
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
+                    target_pole_stretch_position_ = 10000.0f;
                     break;
-                case 25: // ブックの把持を縮める
+                case 25: // ブックの把持を縮めてポールの把持を伸ばす
                     target_book_stretch_position_ = -360.0f; // ブックの把持の位置
+                    target_pole_stretch_position_ = 360.0f;
                     break;
                 case 26: // 昇降でR2を持ち上げ part0
-                    target_lift_position_ = 1000.0f; // 昇降位置
+                    target_lift_position_ = 0.0f; // 昇降位置
                     break;
                 case 27: // 昇降でR2を持ち上げ part1
-                    target_lift_position_ = 6000.0f; // 昇降位置
+                    target_lift_position_ = 3000.0f; // 昇降位置
                     break;
                 case 28: // 昇降でR2を持ち上げ part2
                     target_lift_position_ = 25000.0f; // 昇降位置
