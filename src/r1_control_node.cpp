@@ -254,14 +254,20 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_stretch_position_ = -360.0f; // ブックの把持の位置
                     target_pole_stretch_position_ = 360.0f;
                     break;
-                case 26: // 昇降でR2を持ち上げ part0
+                case 26:
                     target_lift_position_ = 0.0f; // 昇降位置
                     break;
-                case 27: // 昇降でR2を持ち上げ part1
-                    target_lift_position_ = 3000.0f; // 昇降位置
-                    break;
-                case 28: // 昇降でR2を持ち上げ part2
-                    target_lift_position_ = 25000.0f; // 昇降位置
+                case 27:
+                    if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
+                        constexpr float kLiftManualDeadzone = 0.15f;
+                        constexpr float kLiftManualSpeedPerSec = 12000.0f;
+                        float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
+                        if (std::fabs(lift_input) < kLiftManualDeadzone) {
+                            lift_input = 0.0f;
+                        }
+                        target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
+                        target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
+                    }
                     break;
                 default:
                     break;
