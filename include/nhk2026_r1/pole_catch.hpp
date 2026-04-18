@@ -29,7 +29,7 @@ float pole_homing_contact_position = 0.0f;
 
 // Control parameters
 constexpr float POLE_STRETCH_MIN_POS = 0.0f;
-constexpr float POLE_STRETCH_MAX_POS = 14421.0f;
+constexpr float POLE_STRETCH_MAX_POS = 27500.0f;
 constexpr float POLE_STRETCH_HOMING_VELOCITY = -100.0f;  // 逆転でホーミング
 constexpr float POLE_STRETCH_HOMING_CURRENT_THRESHOLD = 3000.0f;  // mA
 constexpr float POLE_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;

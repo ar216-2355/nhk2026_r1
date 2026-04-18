@@ -152,14 +152,12 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 1:
                     target_lift_position_ = 20000.0f; // 昇降位置 new
-
-                    target_book_stretch_position_ = -1000.0f;
-                    target_book_catch_current = 0.0f;
                     break;
                 case 2:
-                    target_pole_stretch_position_ = 14000.0f; // ポールの把持の位置 new
+                    denjiben_catch = 1; // 電磁弁のコマンド
                     break;
                 case 3:
+                    target_lift_position_ = 18000.0f; // 昇降位置 new
                     break;
                 case 4:
                     break;
