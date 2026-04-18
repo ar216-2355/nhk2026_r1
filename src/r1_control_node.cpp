@@ -173,7 +173,7 @@ class R1ControlNode : public rclcpp::Node {
                     target_lift_position_ = 21000.0f; // 昇降位置 new
                     break;
                 case 6: // ポールを180度回転する
-                    target_pole_angle = 201U; // ポールの把持の角度 new
+                    target_pole_angle = 195U; // ポールの把持の角度 new
                     target_lift_position_ = 21000.0f; // 昇降位置
                     break;
                 case 7: // 昇降を少し下げる
