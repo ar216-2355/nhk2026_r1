@@ -183,10 +183,9 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_catch_current = 0.0f;
                     break;
                 case 7: // ブックの把持を伸ばして昇降を下げて把持を開く
-                    target_book_catch_current = -0.25f;
                     target_lift_position_ = 5500.0f; // 昇降位置 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
-                    target_book_catch_current = 0.0f;
+                    target_book_catch_current = -0.25f;
                     break;
                 case 8: // ブックの把持を縮める
                     target_book_catch_current = 0.25f;
@@ -197,7 +196,7 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置 new
                     break;
                 case 10: // ブックの把持を縮める
-                    target_book_stretch_position_ = -20000.0f; // ブックの把持の位置 new
+                    target_book_stretch_position_ = -28000.0f; // ブックの把持の位置 new
                     target_lift_position_ = 6000.0f; // 昇降位置
                     break;
                 case 11: // 昇降を一番上に上げる
