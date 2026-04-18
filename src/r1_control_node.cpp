@@ -252,10 +252,13 @@ class R1ControlNode : public rclcpp::Node {
                 case 25: // ブックの把持を上向きに
                     target_book_angle = 42U; // ブックの把持の角度
                     break;
-                case 26: // 昇降でR2を持ち上げ part1
+                case 26: // 昇降でR2を持ち上げ part0
+                    target_lift_position_ = 1000.0f; // 昇降位置
+                    break;
+                case 27: // 昇降でR2を持ち上げ part1
                     target_lift_position_ = 6000.0f; // 昇降位置
                     break;
-                case 27: // 昇降でR2を持ち上げ part2
+                case 28: // 昇降でR2を持ち上げ part2
                     target_lift_position_ = 25000.0f; // 昇降位置
                     break;
                 default:
