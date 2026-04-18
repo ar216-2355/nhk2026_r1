@@ -165,9 +165,18 @@ class R1ControlNode : public rclcpp::Node {
                     target_pole_angle = 201U; // ポールの把持の角度 new
                     target_lift_position_ = 20000.0f; // 昇降位置 new
                     break;
-                case 5: // 昇降を少し下げて合体
-                    target_lift_position_ = 18000.0f; // 昇降位置 new
-                    target_book_stretch_position_ = -1000.0f; // ブックの把持の位置 new
+                case 5: // 昇降を自由に動かせるようにしたい
+                    target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
+                    if (latest_joy_.axes.size() > Joy::L_STICK_Y) {
+                        constexpr float kLiftManualDeadzone = 0.15f;
+                        constexpr float kLiftManualSpeedPerSec = 12000.0f;
+                        float lift_input = latest_joy_.axes[Joy::L_STICK_Y];
+                        if (std::fabs(lift_input) < kLiftManualDeadzone) {
+                            lift_input = 0.0f;
+                        }
+                        target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
+                        target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
+                    }
                     break;
                 case 6: // ブックの把持を伸ばして昇降を下げる
                     target_lift_position_ = 7000.0f; // 昇降位置 new
@@ -184,7 +193,7 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 9: // ブックの把持を縮める
                     target_book_stretch_position_ = -20000.0f; // ブックの把持の位置 new
-                    target_lift_position_ = 7000.0f; // 昇降位置
+                    target_lift_position_ = 6000.0f; // 昇降位置
                     break;
                 case 10: // 昇降を一番上に上げる
                     target_lift_position_ = 25000.0f; // 昇降位置 new
@@ -230,8 +239,8 @@ class R1ControlNode : public rclcpp::Node {
         denjiben(denjiben_catch, can_pub_);
 
         set_omni_velocity(
-            latest_joy_.axes[Joy::L_STICK_X] * -1500, 
-            latest_joy_.axes[Joy::L_STICK_Y] * 1500, 
+            latest_joy_.axes[Joy::R_STICK_X] * -1500, 
+            latest_joy_.axes[Joy::R_STICK_Y] * 1500, 
             (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 500.0f, 
             packet);
         
