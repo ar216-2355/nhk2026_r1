@@ -163,9 +163,12 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 4: // ポールを180度回転する
                     target_pole_angle = 201U; // ポールの把持の角度 new
-                    target_lift_position_ = 20000.0f; // 昇降位置 new
+                    target_lift_position_ = 20000.0f; // 昇降位置
                     break;
-                case 5: // 昇降を自由に動かせるようにしたい
+                case 5: // 昇降を少し下げる
+                    target_lift_position_ = 16000.0f; // 昇降位置 new
+                    break;
+                case 6: // 昇降を自由に動かせるようにしたい
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
                     if (latest_joy_.axes.size() > Joy::L_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
@@ -178,24 +181,24 @@ class R1ControlNode : public rclcpp::Node {
                         target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
                     }
                     break;
-                case 6: // ブックの把持を伸ばして昇降を下げる
+                case 7: // ブックの把持を伸ばして昇降を下げる
                     target_lift_position_ = 7000.0f; // 昇降位置 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
                     target_book_catch_current = 0.0f;
                     break;
-                case 7: // ブックの把持を縮める
+                case 8: // ブックの把持を縮める
                     target_book_catch_current = 0.25f;
                     target_book_angle = 128U; // ブックの把持の角度
                     break;
-                case 8: // 把持を上向に回転する
+                case 9: // 把持を上向に回転する
                     target_book_angle = 42U; // ブックの把持の角度 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置 new
                     break;
-                case 9: // ブックの把持を縮める
+                case 10: // ブックの把持を縮める
                     target_book_stretch_position_ = -20000.0f; // ブックの把持の位置 new
                     target_lift_position_ = 6000.0f; // 昇降位置
                     break;
-                case 10: // 昇降を一番上に上げる
+                case 11: // 昇降を一番上に上げる
                     target_lift_position_ = 25000.0f; // 昇降位置 new
                     break;
                 default:
