@@ -297,10 +297,15 @@ class R1ControlNode : public rclcpp::Node {
         servo_pole_stretch(target_pole_angle, can_pub_);
         denjiben(denjiben_catch, can_pub_);
 
+        float omuni_speed_multiplier = 1.0f;
+        if (latest_joy_.buttons.size() > Joy::RB && latest_joy_.buttons[Joy::RB]) {
+            omuni_speed_multiplier = 0.3f;  // RBが押されている間は速度を半分に
+        }
+
         set_omni_velocity(
-            latest_joy_.axes[Joy::L_STICK_X] * -2500, 
-            latest_joy_.axes[Joy::L_STICK_Y] * 2500, 
-            (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 1000.0f, 
+            latest_joy_.axes[Joy::L_STICK_X] * -2500 * omuni_speed_multiplier, 
+            latest_joy_.axes[Joy::L_STICK_Y] * 2500 * omuni_speed_multiplier, 
+            (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 1000.0f * omuni_speed_multiplier, 
             packet);
         
         cmd_pub_->publish(packet);
