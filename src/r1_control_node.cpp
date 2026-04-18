@@ -222,11 +222,15 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 17: // 把持を掴む
                     target_book_catch_current = 0.25f;
+                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
                     break;
-                case 18: // ブックの把持を開く
+                case 18: // ブックの把持を引く
+                    target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
+                    break;
+                case 19: // ブックの把持を開く
                     target_book_catch_current = -0.25f;
                     break;
-                case 19: // ブックの把持を伸ばす
+                case 20: // ブックの把持を伸ばす
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
                     break;
                 default:
