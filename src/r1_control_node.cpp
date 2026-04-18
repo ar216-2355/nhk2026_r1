@@ -247,11 +247,9 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 24: // 電流を０にして把持を開いたままにする
                     target_book_catch_current = 0.0f;
-                    target_book_angle = 128U; // ブックの把持の角度
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
                     break;
-                case 25: // ブックの把持を上向きにして縮める
-                    target_book_angle = 42U; // ブックの把持の角度
+                case 25: // ブックの把持を縮める
                     target_book_stretch_position_ = -360.0f; // ブックの把持の位置
                     break;
                 case 26: // 昇降でR2を持ち上げ part0
