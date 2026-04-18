@@ -26,6 +26,8 @@ float pole_stretch_profile_target = 0.0f;
 float pole_stretch_profile_velocity_rpm = 0.0f;
 float pole_stretch_backoff_target = 0.0f;
 float pole_homing_contact_position = 0.0f;
+float pole_backoff_moved = 0.0f;
+float pole_backoff_prev_pos_fb = 0.0f;
 
 // Control parameters
 constexpr float POLE_STRETCH_MIN_POS = 0.0f;
@@ -34,6 +36,7 @@ constexpr float POLE_STRETCH_HOMING_VELOCITY = -100.0f;  // 逆転でホーミ�
 constexpr float POLE_STRETCH_HOMING_CURRENT_THRESHOLD = 3000.0f;  // mA
 constexpr float POLE_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;
 constexpr float POLE_STRETCH_HOMING_BACKOFF = 720.0f;
+constexpr float POLE_STRETCH_BACKOFF_MAX_DELTA_PER_TICK = 200.0f;
 constexpr float POLE_STRETCH_CONTROL_PERIOD_SEC = 0.01f;
 constexpr float POLE_STRETCH_MAX_VELOCITY_RPM = 5000.0f;
 constexpr float POLE_STRETCH_MAX_ACCEL_RPM_PER_SEC = 4800.0f;
@@ -129,16 +132,25 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 				pole_homing_current_count = 0;
 				pole_stretch_profile_target = pos_fb;
 				pole_stretch_profile_velocity_rpm = 0.0f;
+				pole_backoff_moved = 0.0f;
+				pole_backoff_prev_pos_fb = pos_fb;
 			}
 		} else if (pole_homing_current_count > 0) {
 			pole_homing_current_count = 0;
 		}
 	} else if (pole_stretch_state == PoleStretchMode::HOMING_BACKOFF && system_state == 2) {
-		const float profile_pos = update_pole_stretch_trapezoid(pole_stretch_backoff_target);
-		append_command(MotorId::POLE_STRETCH, Mode::POSITION, profile_pos);
+		const float delta_pos = std::fabs(pos_fb - pole_backoff_prev_pos_fb);
+		pole_backoff_moved += std::min(delta_pos, POLE_STRETCH_BACKOFF_MAX_DELTA_PER_TICK);
+		pole_backoff_prev_pos_fb = pos_fb;
 
-		if (std::fabs(pole_stretch_backoff_target - pos_fb) <= POLE_STRETCH_POSITION_TOLERANCE) {
-			pole_stretch_offset = pole_stretch_backoff_target;
+		if (pole_backoff_moved < POLE_STRETCH_HOMING_BACKOFF) {
+			append_command(MotorId::POLE_STRETCH, Mode::VELOCITY, -POLE_STRETCH_HOMING_VELOCITY);
+		} else {
+			append_command(MotorId::POLE_STRETCH, Mode::CURRENT, 0.0f);
+			// DRIVEの相対原点は壁接触点を使う。
+			pole_stretch_offset = pole_homing_contact_position;
+			pole_stretch_profile_target = pole_homing_contact_position;
+			pole_stretch_profile_velocity_rpm = 0.0f;
 			pole_stretch_state = PoleStretchMode::DRIVE;
 		}
 	} else if (pole_stretch_state == PoleStretchMode::DRIVE && system_state == 2) {
