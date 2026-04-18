@@ -138,7 +138,7 @@ class R1ControlNode : public rclcpp::Node {
             }
 
             switch (automaton_state) {
-                case 0:
+                case 0: // 初期値
                     target_lift_position_ = 1000.0f; // 昇降位置
                     
                     target_pole_stretch_position_ = 1000.0f; // ポールの把持の位置
@@ -150,34 +150,44 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_catch_current = 0.0f;
 
                     break;
-                case 1:
+                case 1: // 昇降をポール取得用に上げる
+                    target_lift_position_ = 20000.0f; // 昇降位置 new
+                    denjiben_catch = 0; 
+                    break;
+                case 2: // ポールを取得する（開く）
+                    denjiben_catch = 1; // 電磁弁のコマンドnew
+                    break;
+                case 3: // ポールを取得する（閉じる）
+                    denjiben_catch = 0; // 電磁弁のコマンドnew
+                    target_pole_angle = 21U;
+                    break;
+                case 4: // ポールを180度回転する
+                    target_pole_angle = 201U; // ポールの把持の角度 new
                     target_lift_position_ = 20000.0f; // 昇降位置 new
                     break;
-                case 2:
-                    denjiben_catch = 1; // 電磁弁のコマンド
-                    break;
-                case 3:
-                    denjiben_catch = 0; // 電磁弁のコマンド
-                    break;
-                case 4:
+                case 5: // 昇降を少し下げて合体
                     target_lift_position_ = 18000.0f; // 昇降位置 new
+                    target_book_stretch_position_ = -1000.0f; // ブックの把持の位置 new
                     break;
-                case 5:
+                case 6: // ブックの把持を伸ばして昇降を下げる
+                    target_lift_position_ = 7000.0f; // 昇降位置 new
+                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
+                    target_book_catch_current = 0.0f;
                     break;
-                case 6:
+                case 7: // ブックの把持を縮める
+                    target_book_catch_current = 0.25f;
+                    target_book_angle = 128U; // ブックの把持の角度
                     break;
-                case 7:
-                    target_book_catch_current = -0.25f; // ブックの把持の電流
+                case 8: // 把持を上向に回転する
+                    target_book_angle = 42U; // ブックの把持の角度 new
+                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置 new
                     break;
-                case 8:
-                    target_book_catch_current = 0.0f; // ブックの把持の電流
-                    denjiben_catch = 0; // 電磁弁のコマンド
+                case 9: // ブックの把持を縮める
+                    target_book_stretch_position_ = -20000.0f; // ブックの把持の位置 new
+                    target_lift_position_ = 7000.0f; // 昇降位置
                     break;
-                case 9:
-                    denjiben_catch = 1; // 電磁弁のコマンド
-                    break;
-                case 10:
-                    
+                case 10: // 昇降を一番上に上げる
+                    target_lift_position_ = 25000.0f; // 昇降位置 new
                     break;
                 default:
                     break;
