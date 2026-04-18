@@ -164,7 +164,7 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 4:
                     target_book_angle = 42U; // ブックの把持の角度
-                    target_book_stretch_position_ = -20000.0f; // ブックの把持の位置
+                    target_book_stretch_position_ = -30000.0f; // ブックの把持の位置
                     break;
                 case 5:
                     target_lift_position_ = 20000.0f; // 昇降位置
