@@ -151,28 +151,21 @@ class R1ControlNode : public rclcpp::Node {
 
                     break;
                 case 1:
-                    target_lift_position_ = 8000.0f; // 昇降位置
+                    target_lift_position_ = 20000.0f; // 昇降位置 new
+
                     target_book_stretch_position_ = -1000.0f;
                     target_book_catch_current = 0.0f;
                     break;
                 case 2:
-                    target_book_catch_current = -0.25f; // ブックの把持の電流
-                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
-
+                    target_pole_stretch_position_ = 14000.0f; // ポールの把持の位置 new
                     break;
                 case 3:
-                    target_book_catch_current = 0.25f; // ブックの把持の電流
-                    target_book_stretch_position_ = -60000.0f;
                     break;
                 case 4:
-                    target_book_angle = 42U; // ブックの把持の角度
-                    target_book_stretch_position_ = -30000.0f; // ブックの把持の位置
                     break;
                 case 5:
-                    target_lift_position_ = 25000.0f; // 昇降位置
                     break;
                 case 6:
-                    target_book_angle = 135U; // ブックの把持の角度
                     break;
                 case 7:
                     target_book_catch_current = -0.25f; // ブックの把持の電流
