@@ -166,7 +166,7 @@ class R1ControlNode : public rclcpp::Node {
                     target_lift_position_ = 20000.0f; // 昇降位置
                     break;
                 case 5: // 昇降を少し下げる
-                    target_lift_position_ = 16000.0f; // 昇降位置 new
+                    target_lift_position_ = 13000.0f; // 昇降位置 new
                     break;
                 case 6: // 昇降を自由に動かせるようにしたい
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
@@ -180,9 +180,11 @@ class R1ControlNode : public rclcpp::Node {
                         target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
                         target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
                     }
+                    target_book_catch_current = 0.0f;
                     break;
-                case 7: // ブックの把持を伸ばして昇降を下げる
-                    target_lift_position_ = 7000.0f; // 昇降位置 new
+                case 7: // ブックの把持を伸ばして昇降を下げて把持を開く
+                    target_book_catch_current = -0.25f;
+                    target_lift_position_ = 5500.0f; // 昇降位置 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
                     target_book_catch_current = 0.0f;
                     break;
@@ -204,7 +206,6 @@ class R1ControlNode : public rclcpp::Node {
                 default:
                     break;
             }
-
             prev_a_button_ = a_pressed;
             prev_b_button_ = b_pressed;
             prev_x_button_ = x_pressed;
@@ -242,9 +243,9 @@ class R1ControlNode : public rclcpp::Node {
         denjiben(denjiben_catch, can_pub_);
 
         set_omni_velocity(
-            latest_joy_.axes[Joy::R_STICK_X] * -1500, 
-            latest_joy_.axes[Joy::R_STICK_Y] * 1500, 
-            (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 500.0f, 
+            latest_joy_.axes[Joy::R_STICK_X] * -2500, 
+            latest_joy_.axes[Joy::R_STICK_Y] * 2500, 
+            (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 1000.0f, 
             packet);
         
         cmd_pub_->publish(packet);
