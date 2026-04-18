@@ -148,8 +148,8 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 			pole_stretch_state = PoleStretchMode::DRIVE;
 		}
 	} else if (pole_stretch_state == PoleStretchMode::DRIVE && system_state == 2) {
-		float target_pos = pole_stretch_offset + position;
-		target_pos = std::clamp(target_pos, POLE_STRETCH_MIN_POS, POLE_STRETCH_MAX_POS);
+		const float relative_target = std::clamp(position, POLE_STRETCH_MIN_POS, POLE_STRETCH_MAX_POS);
+		const float target_pos = pole_stretch_offset + relative_target;
 
 		const float profile_pos = update_pole_stretch_trapezoid(target_pos);
 		append_command(MotorId::POLE_STRETCH, Mode::POSITION, profile_pos);

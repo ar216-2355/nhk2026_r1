@@ -103,6 +103,7 @@ class R1ControlNode : public rclcpp::Node {
             target_lift_position_ = 0.0f;
             target_book_stretch_position_ = 0.0f;
             target_pole_stretch_position_ = 0.0f;
+            automaton_state = 0;
         }
 
         if (latest_joy_.buttons.size() > Joy::X) {
@@ -142,6 +143,7 @@ class R1ControlNode : public rclcpp::Node {
                     
                     target_pole_stretch_position_ = 1000.0f; // ポールの把持の位置
                     target_pole_angle = 21U; // ポールの把持の角度
+                    denjiben_catch = 0; // 電磁弁のコマンド
                     
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
                     target_book_angle = 128U; // ブックの把持の角度
@@ -177,6 +179,13 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 8:
                     target_book_catch_current = 0.0f; // ブックの把持の電流
+                    denjiben_catch = 0; // 電磁弁のコマンド
+                    break;
+                case 9:
+                    denjiben_catch = 1; // 電磁弁のコマンド
+                    break;
+                case 10:
+                    
                     break;
                 default:
                     break;

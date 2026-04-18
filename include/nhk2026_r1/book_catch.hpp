@@ -161,8 +161,8 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
     // DRIVE mode
     else if (book_stretch_state == BookStretchMode::DRIVE && system_state == 2) {  // DRIVE mode
         // Position control: offset基準に相対位置制御 + 台形プロファイル
-        float target_pos = book_stretch_offset + position;
-        target_pos = std::clamp(target_pos, BOOK_STRETCH_MIN_POS, BOOK_STRETCH_MAX_POS);
+        const float relative_target = std::clamp(position, BOOK_STRETCH_MIN_POS, BOOK_STRETCH_MAX_POS);
+        const float target_pos = book_stretch_offset + relative_target;
 
         const float profile_pos = update_book_stretch_trapezoid(target_pos);
         append_command(MotorId::BOOK_STRETCH, Mode::POSITION, profile_pos);
