@@ -149,7 +149,7 @@ class R1ControlNode : public rclcpp::Node {
 
                     break;
                 case 1:
-                    target_lift_position_ = 4000.0f; // 昇降位置
+                    target_lift_position_ = 8000.0f; // 昇降位置
                     target_book_stretch_position_ = -1000.0f;
                     target_book_catch_current = 0.0f;
                     break;
