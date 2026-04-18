@@ -142,11 +142,11 @@ class R1ControlNode : public rclcpp::Node {
                     target_lift_position_ = 1000.0f; // 昇降位置
                     
                     target_pole_stretch_position_ = 1000.0f; // ポールの把持の位置
-                    target_pole_angle = 21U; // ポールの把持の角度
+                    target_pole_angle = 111U; // ポールの把持の角度
                     denjiben_catch = 0; // 電磁弁のコマンド
                     
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
-                    target_book_angle = 128U; // ブックの把持の角度
+                    target_book_angle = 42U; // ブックの把持の角度
                     target_book_catch_current = 0.0f;
 
                     break;
@@ -170,10 +170,10 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 6: // 昇降を自由に動かせるようにしたい
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
-                    if (latest_joy_.axes.size() > Joy::L_STICK_Y) {
+                    if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
                         constexpr float kLiftManualSpeedPerSec = 12000.0f;
-                        float lift_input = latest_joy_.axes[Joy::L_STICK_Y];
+                        float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
                         if (std::fabs(lift_input) < kLiftManualDeadzone) {
                             lift_input = 0.0f;
                         }
@@ -273,8 +273,8 @@ class R1ControlNode : public rclcpp::Node {
         denjiben(denjiben_catch, can_pub_);
 
         set_omni_velocity(
-            latest_joy_.axes[Joy::R_STICK_X] * -2500, 
-            latest_joy_.axes[Joy::R_STICK_Y] * 2500, 
+            latest_joy_.axes[Joy::L_STICK_X] * -2500, 
+            latest_joy_.axes[Joy::L_STICK_Y] * 2500, 
             (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 1000.0f, 
             packet);
         
