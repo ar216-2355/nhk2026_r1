@@ -125,7 +125,7 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         append_command(MotorId::BOOK_STRETCH, Mode::VELOCITY, BOOK_STRETCH_HOMING_VELOCITY);
         
         // 電流しきい値確認（デバウンス付き）
-        if (motor_current_ma > BOOK_STRETCH_HOMING_CURRENT_THRESHOLD) {
+        if (std::fabs(motor_current_ma) > BOOK_STRETCH_HOMING_CURRENT_THRESHOLD) {
             homing_current_count++;
             if (homing_current_count >= BOOK_STRETCH_HOMING_DEBOUNCE_CYCLES) {
                 // 壁接触点を原点(offset)として記録し、そこから固定量だけ戻す。
