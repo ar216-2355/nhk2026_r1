@@ -150,11 +150,13 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_catch_current = 0.0f;
 
                     break;
-                case 1: //ブックの把持を横に
+                case 1: //ブックの把持を横に、ポールの把持を伸ばす
+                    target_pole_stretch_position_ = 25000.0f;
                     target_book_angle = 128U; // ブックの把持の角度
                     target_lift_position_ = 1000.0f;
                     break;
                 case 2: // 昇降をポール取得用に上げる
+                    target_pole_angle = 21U; // ポールの把持の角度 new
                     target_lift_position_ = 20000.0f; // 昇降位置 new
                     denjiben_catch = 0; 
                     break;
@@ -164,15 +166,19 @@ class R1ControlNode : public rclcpp::Node {
                 case 4: // ポールを取得する（閉じる）
                     denjiben_catch = 0; // 電磁弁のコマンドnew
                     target_pole_angle = 21U;
+                    target_lift_position_ = 20000.0f;
                     break;
-                case 5: // ポールを180度回転する
+                case 5: // 昇降を少し上げる
+                    target_lift_position_ = 21000.0f; // 昇降位置 new
+                    break;
+                case 6: // ポールを180度回転する
                     target_pole_angle = 201U; // ポールの把持の角度 new
-                    target_lift_position_ = 20000.0f; // 昇降位置
+                    target_lift_position_ = 21000.0f; // 昇降位置
                     break;
-                case 6: // 昇降を少し下げる
-                    target_lift_position_ = 13000.0f; // 昇降位置 new
+                case 7: // 昇降を少し下げる
+                    target_lift_position_ = 12000.0f; // 昇降位置 new
                     break;
-                case 7: // 昇降を自由に動かせるようにしたい
+                case 8: // 昇降を自由に動かせるようにしたい
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
                     if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
@@ -186,56 +192,70 @@ class R1ControlNode : public rclcpp::Node {
                     }
                     target_book_catch_current = 0.0f;
                     break;
-                case 8: // ブックの把持を伸ばして昇降を下げて把持を開いてポールの把持を引く
+                case 9: // ブックの把持を伸ばして昇降を下げて把持を開いてポールの把持を引く
                     target_lift_position_ = 5500.0f; // 昇降位置 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
                     target_book_catch_current = -0.3f;
                     target_pole_stretch_position_ = 10000.0f; // ポールの把持の位置
                     break;
-                case 9: // 電流を０にして把持を開いたままにする
+                case 10: // 電流を０にして把持を開いたままにする
                     target_book_catch_current = 0.0f;
                     break;
-                case 10: // ブックの把持を縮める
+                case 11: // ブックの把持を縮める
                     target_book_catch_current = 0.25f;
                     target_book_angle = 128U; // ブックの把持の角度
                     break;
-                case 11: // 把持を上向に回転する
+                case 12: // 把持を上向に回転する
                     target_book_angle = 42U; // ブックの把持の角度 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置 new
                     break;
-                case 12: // ブックの把持を縮める
+                case 13: // ブックの把持を縮める
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置 new
                     target_lift_position_ = 6000.0f; // 昇降位置
                     break;
-                case 13: // 昇降を一番上に上げる
+                case 14: // 昇降を一番上に上げる
                     target_lift_position_ = 24000.0f; // 昇降位置 new
                     break;
-                case 14: // ブックの把持を開く
+                case 15: // ブックの把持を開く
                     target_book_catch_current = -0.3f;
                     break;
-                case 15: // 電流を０にして把持を開いたままにする
+                case 16: // 電流を０にして把持を開いたままにする
                     target_book_catch_current = 0.0f;
                     break;
-                case 16: // ブックの向きを横に
+                case 17: // ブックの向きを横に
                     target_book_angle = 128U; // ブックの把持の角度
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
                     break;
-                case 17: // ブックの把持を伸ばす
+                case 18: // ブックの把持を伸ばす
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
                     target_book_catch_current = 0.0f;
                     break;
-                case 18: // 把持を掴む
+                case 19: // 把持を掴む
                     target_book_catch_current = 0.25f;
-                    
+                    target_book_angle = 128U; // ブックの把持の角度
                     break;
-                case 19: // ブックの把持を引く
+                case 20: // ブックの把持を引いて上向にする
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
+                    target_book_angle = 42U; // ブックの把持の角度
                     break;
-                case 20: // ブックの把持を開く
+                case 21: // ブックの把持を前向きにする
+                    target_book_angle = 128U; // ブックの把持の角度
+                    break;
+                case 22: // ブックの把持を開く
                     target_book_catch_current = -0.25f;
                     break;
-                case 21: // ブックの把持を伸ばす
-                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
+                case 24: // 電流を０にして把持を開いたままにする
+                    target_book_catch_current = 0.0f;
+                    target_book_angle = 128U; // ブックの把持の角度
+                    break;
+                case 25: // ブックの把持を上向きに
+                    target_book_angle = 42U; // ブックの把持の角度
+                    break;
+                case 26: // 昇降でR2を持ち上げ part1
+                    target_lift_position_ = 6000.0f; // 昇降位置
+                    break;
+                case 27: // 昇降でR2を持ち上げ part2
+                    target_lift_position_ = 25000.0f; // 昇降位置
                     break;
                 default:
                     break;
