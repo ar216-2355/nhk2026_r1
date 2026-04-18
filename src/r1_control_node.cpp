@@ -54,9 +54,12 @@ class R1ControlNode : public rclcpp::Node {
     float target_lift_position_ = 0.0f;
     float target_book_stretch_position_ = 0.0f;
     float target_pole_stretch_position_ = 0.0f;
-    uint16_t target_book_stretch_angle = 0;
-    uint16_t target_pole_stretch_angle = 0;
+    uint16_t target_book_angle = 0;
+    uint16_t target_pole_angle = 0;
     float target_book_catch_current = 0.0f;
+    uint8_t denjiben_catch = 0;
+
+    int automaton_state = 0;
 
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) { latest_joy_ = *msg; }
 
@@ -107,26 +110,76 @@ class R1ControlNode : public rclcpp::Node {
             const bool b_pressed = latest_joy_.buttons[Joy::B];
             const bool x_pressed = latest_joy_.buttons[Joy::X];
             const bool y_pressed = latest_joy_.buttons[Joy::Y];
+
             if (a_pressed && !prev_a_button_ &&
                 lift_state[0] == SystemMode::DRIVE &&
                 lift_state[1] == SystemMode::DRIVE &&
                 lift_state[2] == SystemMode::DRIVE &&
-                lift_state[3] == SystemMode::DRIVE) {
-                target_lift_position_ = (std::fabs(target_lift_position_ - 20000.0f) < 1.0f) ? 0.0f : 20000.0f;
+                lift_state[3] == SystemMode::DRIVE &&
+                book_stretch_state == BookStretchMode::DRIVE &&
+                pole_stretch_state == PoleStretchMode::DRIVE &&
+                current_system_state_ == 2) 
+            {
+                automaton_state++;
             }
 
-            if (b_pressed && !prev_b_button_ && current_system_state_ == 2) {
-                target_book_stretch_position_ =
-                    (std::fabs(target_book_stretch_position_ - (-60000.0f)) < 1.0f) ? 0.0f : -60000.0f;
+            if (b_pressed && !prev_b_button_ &&
+                lift_state[0] == SystemMode::DRIVE &&
+                lift_state[1] == SystemMode::DRIVE &&
+                lift_state[2] == SystemMode::DRIVE &&
+                lift_state[3] == SystemMode::DRIVE &&
+                book_stretch_state == BookStretchMode::DRIVE &&
+                pole_stretch_state == PoleStretchMode::DRIVE &&
+                current_system_state_ == 2) 
+            {
+                automaton_state--;
+                if (automaton_state < 0) automaton_state = 0;
             }
 
-            if (x_pressed && !prev_x_button_ && current_system_state_ == 2) {
-                target_book_stretch_angle = (target_book_stretch_angle == 180U) ? 90U : 180U;
-                target_pole_stretch_angle = (target_pole_stretch_angle == 180U) ? 90U : 180U;
-            }
+            switch (automaton_state) {
+                case 0:
+                    target_lift_position_ = 1000.0f; // 昇降位置
+                    
+                    target_pole_stretch_position_ = 1000.0f; // ポールの把持の位置
+                    target_pole_angle = 21U; // ポールの把持の角度
+                    
+                    target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
+                    target_book_angle = 128U; // ブックの把持の角度
+                    target_book_catch_current = 0.0f;
 
-            if (y_pressed && !prev_y_button_ && current_system_state_ == 2) {
-                target_book_catch_current = (target_book_catch_current == 0.0f) ? 0.25f : 0.0f;
+                    break;
+                case 1:
+                    target_lift_position_ = 4000.0f; // 昇降位置
+                    target_book_stretch_position_ = -1000.0f;
+                    target_book_catch_current = 0.0f;
+                    break;
+                case 2:
+                    target_book_catch_current = -0.25f; // ブックの把持の電流
+                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
+
+                    break;
+                case 3:
+                    target_book_catch_current = 0.25f; // ブックの把持の電流
+                    target_book_stretch_position_ = -60000.0f;
+                    break;
+                case 4:
+                    target_book_angle = 42U; // ブックの把持の角度
+                    target_book_stretch_position_ = -20000.0f; // ブックの把持の位置
+                    break;
+                case 5:
+                    target_lift_position_ = 20000.0f; // 昇降位置
+                    break;
+                case 6:
+                    target_book_angle = 128U; // ブックの把持の角度
+                    break;
+                case 7:
+                    target_book_catch_current = -0.25f; // ブックの把持の電流
+                    break;
+                case 8:
+                    target_book_catch_current = 0.0f; // ブックの把持の電流
+                    break;
+                default:
+                    break;
             }
 
             prev_a_button_ = a_pressed;
@@ -150,7 +203,7 @@ class R1ControlNode : public rclcpp::Node {
             current_motors_[MotorId::BOOK_STRETCH - 1].angle,
             current_motors_[MotorId::BOOK_STRETCH - 1].torque,
             packet);
-        servo_book_stretch(target_book_stretch_angle, can_pub_);
+        servo_book_stretch(target_book_angle, can_pub_);
         if (prev_system_state_ == 1 && current_system_state_ == 2) {
             start_can_send_book(can_pub_);
         }
@@ -162,7 +215,8 @@ class R1ControlNode : public rclcpp::Node {
             current_motors_[MotorId::POLE_STRETCH - 1].angle,
             current_motors_[MotorId::POLE_STRETCH - 1].torque,
             packet);
-        servo_pole_stretch(target_pole_stretch_angle, can_pub_);
+        servo_pole_stretch(target_pole_angle, can_pub_);
+        denjiben(denjiben_catch, can_pub_);
 
         set_omni_velocity(
             latest_joy_.axes[Joy::L_STICK_X] * -1500, 

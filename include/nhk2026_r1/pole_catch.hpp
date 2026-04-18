@@ -25,6 +25,7 @@ int pole_homing_current_count = 0;
 float pole_stretch_profile_target = 0.0f;
 float pole_stretch_profile_velocity_rpm = 0.0f;
 float pole_stretch_backoff_target = 0.0f;
+float pole_homing_contact_position = 0.0f;
 
 // Control parameters
 constexpr float POLE_STRETCH_MIN_POS = 0.0f;
@@ -32,7 +33,7 @@ constexpr float POLE_STRETCH_MAX_POS = 14421.0f;
 constexpr float POLE_STRETCH_HOMING_VELOCITY = -100.0f;  // 逆転でホーミング
 constexpr float POLE_STRETCH_HOMING_CURRENT_THRESHOLD = 3000.0f;  // mA
 constexpr float POLE_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;
-constexpr float POLE_STRETCH_HOMING_BACKOFF = 360.0f;
+constexpr float POLE_STRETCH_HOMING_BACKOFF = 720.0f;
 constexpr float POLE_STRETCH_CONTROL_PERIOD_SEC = 0.01f;
 constexpr float POLE_STRETCH_MAX_VELOCITY_RPM = 5000.0f;
 constexpr float POLE_STRETCH_MAX_ACCEL_RPM_PER_SEC = 4800.0f;
@@ -121,8 +122,9 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 		if (std::fabs(motor_current_ma) > POLE_STRETCH_HOMING_CURRENT_THRESHOLD) {
 			pole_homing_current_count++;
 			if (pole_homing_current_count >= POLE_STRETCH_HOMING_DEBOUNCE_CYCLES) {
-				// ホーミング完了後、検出位置から必ず360だけ戻す
-				pole_stretch_backoff_target = pos_fb + POLE_STRETCH_HOMING_BACKOFF;
+				// ホーミング完了後、壁接触を検出した位置から固定で720戻す
+				pole_homing_contact_position = pos_fb;
+				pole_stretch_backoff_target = pole_homing_contact_position + POLE_STRETCH_HOMING_BACKOFF;
 				pole_stretch_state = PoleStretchMode::HOMING_BACKOFF;
 				pole_homing_current_count = 0;
 				pole_stretch_profile_target = pos_fb;
@@ -152,6 +154,10 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 	}
 }
 
+// 21度（←縦）
+// 111度（↓横）
+// 201度（→縦）
+
 inline void servo_pole_stretch(
 	uint16_t angle,
 	const rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr& can_pub) {
@@ -174,6 +180,18 @@ inline void servo_pole_stretch(
 	msg.dlc = 8;
 	msg.data = {b, a, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
 	can_pub->publish(msg);
+}
+
+inline void denjiben(uint8_t catch, const rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr& can_pub) {
+    if (!can_pub) {
+        return;
+    }
+    auto msg = robomas_interfaces::msg::CanFrame();
+    msg.id = 0x400;
+    msg.dlc = 1;
+    msg.data = {catch};
+    can_pub->publish(msg);
+
 }
 
 

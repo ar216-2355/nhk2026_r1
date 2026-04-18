@@ -26,6 +26,7 @@ int homing_current_count = 0;
 float book_stretch_profile_target = 0.0f;
 float book_stretch_profile_velocity_rpm = 0.0f;
 float book_stretch_backoff_target = 0.0f;
+float book_homing_contact_position = 0.0f;
 
 // Control parameters
 constexpr float BOOK_STRETCH_MIN_POS = -64174.0f;
@@ -33,7 +34,7 @@ constexpr float BOOK_STRETCH_MAX_POS = 0.0f;
 constexpr float BOOK_STRETCH_HOMING_VELOCITY = 100.0f;  // 正転でホーミング
 constexpr float BOOK_STRETCH_HOMING_CURRENT_THRESHOLD = 3000.0f;  // mA - 限界検出しきい値
 constexpr float BOOK_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;  // 電流しきい値確認のデバウンス周期数
-constexpr float BOOK_STRETCH_HOMING_BACKOFF = 36.0f;
+constexpr float BOOK_STRETCH_HOMING_BACKOFF = 360.0f;
 constexpr float BOOK_STRETCH_CONTROL_PERIOD_SEC = 0.01f;
 constexpr float BOOK_STRETCH_MAX_VELOCITY_RPM = 5000.0f;
 constexpr float BOOK_STRETCH_MAX_ACCEL_RPM_PER_SEC = 4800.0f;
@@ -127,9 +128,10 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         if (motor_current_ma > BOOK_STRETCH_HOMING_CURRENT_THRESHOLD) {
             homing_current_count++;
             if (homing_current_count >= BOOK_STRETCH_HOMING_DEBOUNCE_CYCLES) {
-                // ホーミング完了後、まずは指定バックオフ位置まで戻す
+                // ホーミング完了後、壁接触を検出した位置から固定で720戻す
+                book_homing_contact_position = pos_fb;
                 book_stretch_backoff_target = std::clamp(
-                    pos_fb - BOOK_STRETCH_HOMING_BACKOFF,
+                    book_homing_contact_position - BOOK_STRETCH_HOMING_BACKOFF,
                     BOOK_STRETCH_MIN_POS,
                     BOOK_STRETCH_MAX_POS);
                 book_stretch_state = BookStretchMode::HOMING_BACKOFF;
@@ -169,6 +171,10 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         append_command(MotorId::BOOK_STRETCH, Mode::CURRENT, 0.0f);
     }
 }
+
+// 42度（上向）
+// 128度（水平）
+// 213度（下向）
 
 inline void servo_book_stretch(
     uint16_t angle,
