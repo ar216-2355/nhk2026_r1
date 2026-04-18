@@ -182,14 +182,14 @@ inline void servo_pole_stretch(
 	can_pub->publish(msg);
 }
 
-inline void denjiben(uint8_t catch, const rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr& can_pub) {
+inline void denjiben(uint8_t valve_cmd, const rclcpp::Publisher<robomas_interfaces::msg::CanFrame>::SharedPtr& can_pub) {
     if (!can_pub) {
         return;
     }
     auto msg = robomas_interfaces::msg::CanFrame();
     msg.id = 0x400;
     msg.dlc = 1;
-    msg.data = {catch};
+	msg.data = {valve_cmd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     can_pub->publish(msg);
 
 }
