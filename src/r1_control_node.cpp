@@ -154,6 +154,7 @@ class R1ControlNode : public rclcpp::Node {
                     target_pole_stretch_position_ = 1000.0f;
                     target_book_angle = 128U; // ブックの把持の角度
                     target_lift_position_ = 1000.0f;
+                    target_pole_angle = 111U; // ポールの把持の角度
                     break;
                 case 2: // 昇降をポール取得用に上げる
                     target_pole_angle = 21U; // ポールの把持の角度 new
