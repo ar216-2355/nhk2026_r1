@@ -31,7 +31,7 @@ float pole_homing_contact_position = 0.0f;
 constexpr float POLE_STRETCH_MIN_POS = 0.0f;
 constexpr float POLE_STRETCH_MAX_POS = 27400.0f;
 constexpr float POLE_STRETCH_HOMING_VELOCITY = -100.0f;  // 逆転でホーミング
-constexpr float POLE_STRETCH_HOMING_CURRENT_THRESHOLD = 2000.0f;  // mA
+constexpr float POLE_STRETCH_HOMING_CURRENT_THRESHOLD = 1500.0f;  // mA
 constexpr float POLE_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;
 constexpr float POLE_STRETCH_HOMING_BACKOFF = 720.0f;
 constexpr float POLE_STRETCH_CONTROL_PERIOD_SEC = 0.01f;
@@ -120,22 +120,17 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 		append_command(MotorId::POLE_STRETCH, Mode::VELOCITY, POLE_STRETCH_HOMING_VELOCITY);
 
 		if (std::fabs(motor_current_ma) > POLE_STRETCH_HOMING_CURRENT_THRESHOLD) {
-			pole_homing_current_count++;
-			if (pole_homing_current_count >= POLE_STRETCH_HOMING_DEBOUNCE_CYCLES) {
-				// 壁接触点を原点(offset)として記録し、そこから固定量だけ戻す。
-				pole_homing_contact_position = pos_fb;
-				pole_stretch_offset = pole_homing_contact_position;
-				pole_stretch_backoff_target = std::clamp(
-					pole_stretch_offset + POLE_STRETCH_HOMING_BACKOFF,
-					POLE_STRETCH_MIN_POS,
-					POLE_STRETCH_MAX_POS);
-				pole_stretch_state = PoleStretchMode::HOMING_BACKOFF;
-				pole_homing_current_count = 0;
-				pole_stretch_profile_target = pos_fb;
-				pole_stretch_profile_velocity_rpm = 0.0f;
-			}
-		} else if (pole_homing_current_count > 0) {
+			// 一度でもしきい値を超えたら壁接触とみなし、即バックオフへ移行する。
+			pole_homing_contact_position = pos_fb;
+			pole_stretch_offset = pole_homing_contact_position;
+			pole_stretch_backoff_target = std::clamp(
+				pole_stretch_offset + POLE_STRETCH_HOMING_BACKOFF,
+				POLE_STRETCH_MIN_POS,
+				POLE_STRETCH_MAX_POS);
+			pole_stretch_state = PoleStretchMode::HOMING_BACKOFF;
 			pole_homing_current_count = 0;
+			pole_stretch_profile_target = pos_fb;
+			pole_stretch_profile_velocity_rpm = 0.0f;
 		}
 	} else if (pole_stretch_state == PoleStretchMode::HOMING_BACKOFF && system_state == 2) {
 		const float profile_pos = update_pole_stretch_trapezoid(pole_stretch_backoff_target);
