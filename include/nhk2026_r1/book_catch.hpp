@@ -132,7 +132,7 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
                 book_homing_contact_position = pos_fb;
                 book_stretch_offset = book_homing_contact_position;
                 book_stretch_backoff_target = std::clamp(
-                    book_stretch_offset + BOOK_STRETCH_HOMING_BACKOFF,
+                    book_stretch_offset - BOOK_STRETCH_HOMING_BACKOFF,
                     BOOK_STRETCH_MIN_POS,
                     BOOK_STRETCH_MAX_POS);
                 book_stretch_state = BookStretchMode::HOMING_BACKOFF;
