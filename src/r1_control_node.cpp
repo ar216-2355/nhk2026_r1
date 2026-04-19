@@ -230,42 +230,42 @@ class R1ControlNode : public rclcpp::Node {
                     target_pole_stretch_position_ = 18000.0f; // ポールの把持の位置
                     target_book_angle = 128U; // ブックの把持の角度
                     break;
-                case 12: // 把持を上向に回転する
+                case 10: // 把持を上向に回転する
                     target_book_angle = 42U; // ブックの把持の角度 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置 new
                     break;
-                case 13: // ブックの把持を縮める
+                case 11: // ブックの把持を縮める
                     target_book_stretch_position_ = -25000.0f; // ブックの把持の位置 new
                     target_lift_position_ = 6000.0f; // 昇降位置
                     break;
-                case 14: // 昇降を一番上に上げる
+                case 12: // 昇降を一番上に上げる
                     target_lift_position_ = 25000.0f; // 昇降位置 new
                     break;
-                case 17: // ブックの向きを横に
+                case 13: // ブックの向きを横に
                     target_book_angle = 128U; // ブックの把持の角度
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
                     break;
-                case 18: // ブックの把持を伸ばす
+                case 14: // ブックの把持を伸ばす
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
                     target_book_angle = 128U; // ブックの把持の角度
                     break;
-                case 20: // ブックの把持を引いて上向にする
+                case 15: // ブックの把持を引いて上向にする
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
                     target_book_angle = 42U; // ブックの把持の角度
                     break;
-                case 21: // ブックの把持を前向きにする
-                    target_book_angle = 128U; // ブックの把持の角度 new
+                case 16: // ブックの把持を前向きにする
+                    target_book_angle = 110U; // ブックの把持の角度 new
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
                     target_pole_stretch_position_ = 18000.0f;
                     break;
-                case 25: // ブックの把持を縮めてポールの把持を伸ばす
+                case 17: // ブックの把持を縮めてポールの把持を伸ばす
                     target_book_stretch_position_ = -360.0f; // ブックの把持の位置
                     target_pole_stretch_position_ = 360.0f;
                     break;
-                case 26:
+                case 18:
                     target_lift_position_ = 0.0f; // 昇降位置
                     break;
-                case 27:
+                case 19:
                     if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
                         constexpr float kLiftManualSpeedPerSec = 12000.0f;
