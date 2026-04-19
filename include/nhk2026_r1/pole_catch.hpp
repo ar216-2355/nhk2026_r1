@@ -126,7 +126,7 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 				pole_homing_contact_position = pos_fb;
 				pole_stretch_offset = pole_homing_contact_position;
 				pole_stretch_backoff_target = std::clamp(
-					pole_stretch_offset + POLE_STRETCH_HOMING_BACKOFF,
+					pole_stretch_offset - POLE_STRETCH_HOMING_BACKOFF,
 					POLE_STRETCH_MIN_POS,
 					POLE_STRETCH_MAX_POS);
 				pole_stretch_state = PoleStretchMode::HOMING_BACKOFF;
