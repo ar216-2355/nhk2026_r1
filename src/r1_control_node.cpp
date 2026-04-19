@@ -61,6 +61,8 @@ class R1ControlNode : public rclcpp::Node {
     float target_book_catch_current = 0.0f;
     uint8_t denjiben_catch = 0;
 
+    float terbo_mode = 1.0f;
+
     int automaton_state = 0;
 
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) { latest_joy_ = *msg; }
@@ -113,6 +115,7 @@ class R1ControlNode : public rclcpp::Node {
             const bool b_pressed = latest_joy_.buttons[Joy::B];
             const bool x_pressed = latest_joy_.buttons[Joy::X];
             const bool y_pressed = latest_joy_.buttons[Joy::Y];
+            const bool lb_pressed = latest_joy_.buttons[Joy::LB];
             const float dpad_x_pressed = latest_joy_.axes[Joy::DPAD_X];
             const float dpad_y_pressed = latest_joy_.axes[Joy::DPAD_Y];
 
@@ -141,14 +144,19 @@ class R1ControlNode : public rclcpp::Node {
                 if (automaton_state < 0) automaton_state = 0;
             }
 
+            if(lb_pressed) {
+                terbo_mode = 1.5;
+            }else{
+                terbo_mode = 1.0;
+            }
+
             if(dpad_y_pressed && !prev_dpad_y_button_) {
                 if (latest_joy_.axes.size() > Joy::DPAD_Y) {
                     if(latest_joy_.axes[Joy::DPAD_Y] > 0.5f) {
-                        target_book_catch_current = -0.25f;
+                        target_book_catch_current = -0.25f * terbo_mode;
                     } else if(latest_joy_.axes[Joy::DPAD_Y] < -0.5f) {
-                        target_book_catch_current = 0.25f;
+                        target_book_catch_current = 0.25f * terbo_mode;
                     }
-                    
                 }
             }
             if(dpad_x_pressed && !prev_dpad_x_button_) {
