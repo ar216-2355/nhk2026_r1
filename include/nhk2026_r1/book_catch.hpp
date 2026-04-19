@@ -196,7 +196,7 @@ inline void servo_book_stretch(
     auto msg = robomas_interfaces::msg::CanFrame();
     msg.id = 0x301;
     msg.dlc = 8;
-    msg.data = {b, a, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00};
+    msg.data = {b, a, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00};
     can_pub->publish(msg);
 }
 
