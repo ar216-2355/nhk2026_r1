@@ -31,7 +31,7 @@ float pole_homing_contact_position = 0.0f;
 constexpr float POLE_STRETCH_MIN_POS = 0.0f;
 constexpr float POLE_STRETCH_MAX_POS = 27400.0f;
 constexpr float POLE_STRETCH_HOMING_VELOCITY = -100.0f;  // 逆転でホーミング
-constexpr float POLE_STRETCH_HOMING_CURRENT_THRESHOLD = 1500.0f;  // mA
+constexpr float POLE_STRETCH_HOMING_CURRENT_THRESHOLD = 2000.0f;  // mA
 constexpr float POLE_STRETCH_HOMING_DEBOUNCE_CYCLES = 5;
 constexpr float POLE_STRETCH_HOMING_BACKOFF = 720.0f;
 constexpr float POLE_STRETCH_CONTROL_PERIOD_SEC = 0.01f;
@@ -126,7 +126,7 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 				pole_homing_contact_position = pos_fb;
 				pole_stretch_offset = pole_homing_contact_position;
 				pole_stretch_backoff_target = std::clamp(
-					pole_stretch_offset - POLE_STRETCH_HOMING_BACKOFF,
+					pole_stretch_offset + POLE_STRETCH_HOMING_BACKOFF,
 					POLE_STRETCH_MIN_POS,
 					POLE_STRETCH_MAX_POS);
 				pole_stretch_state = PoleStretchMode::HOMING_BACKOFF;
