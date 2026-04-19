@@ -144,6 +144,10 @@ class R1ControlNode : public rclcpp::Node {
                 if (automaton_state < 0) automaton_state = 0;
             }
 
+            if(y_pressed && !prev_y_button_){
+                target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
+            }
+
             if(lb_pressed) {
                 terbo_mode = 1.5;
             }else{
