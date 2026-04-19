@@ -123,11 +123,9 @@ inline void set_pole_stretch(uint8_t system_state, float position, float pos_fb,
 			// 一度でもしきい値を超えたら壁接触とみなし、即バックオフへ移行する。
 			pole_homing_contact_position = pos_fb;
 			pole_stretch_offset = pole_homing_contact_position;
-			pole_stretch_backoff_target = std::clamp(
-				pole_stretch_offset + POLE_STRETCH_HOMING_BACKOFF,
-				POLE_STRETCH_MIN_POS,
-				POLE_STRETCH_MAX_POS);
-			pole_stretch_state = PoleStretchMode::HOMING_BACKOFF;
+			// ホーミング後は「少し戻る」を行わず、接触位置で停止する。
+			pole_stretch_backoff_target = pole_stretch_offset;
+			pole_stretch_state = PoleStretchMode::DRIVE;
 			pole_homing_current_count = 0;
 			pole_stretch_profile_target = pos_fb;
 			pole_stretch_profile_velocity_rpm = 0.0f;
