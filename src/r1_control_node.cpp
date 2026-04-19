@@ -258,7 +258,7 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_angle = 42U; // ブックの把持の角度
                     break;
                 case 16: // ブックの把持を前向きにする
-                    target_book_angle = 100U; // ブックの把持の角度 new
+                    target_book_angle = 106U; // ブックの把持の角度 new
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
                     target_pole_stretch_position_ = 18000.0f;
                     break;
@@ -322,13 +322,13 @@ class R1ControlNode : public rclcpp::Node {
 
         float omuni_speed_multiplier = 1.0f;
         if (latest_joy_.buttons.size() > Joy::RB && latest_joy_.buttons[Joy::RB]) {
-            omuni_speed_multiplier = 0.3f;  // RBが押されている間は速度を半分に
+            omuni_speed_multiplier = 0.1f;  // RBが押されている間は速度を半分に
         }
 
         set_omni_velocity(
-            latest_joy_.axes[Joy::L_STICK_X] * -2500 * omuni_speed_multiplier, 
-            latest_joy_.axes[Joy::L_STICK_Y] * 2500 * omuni_speed_multiplier, 
-            (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 1000.0f * omuni_speed_multiplier, 
+            latest_joy_.axes[Joy::L_STICK_X] * -3000 * omuni_speed_multiplier, 
+            latest_joy_.axes[Joy::L_STICK_Y] * 3000 * omuni_speed_multiplier, 
+            (latest_joy_.axes[Joy::LT] - latest_joy_.axes[Joy::RT]) * 1400.0f * omuni_speed_multiplier, 
             packet);
         
         cmd_pub_->publish(packet);
