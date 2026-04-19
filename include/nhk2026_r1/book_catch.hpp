@@ -27,9 +27,6 @@ float book_stretch_profile_target = 0.0f;
 float book_stretch_profile_velocity_rpm = 0.0f;
 float book_stretch_backoff_target = 0.0f;
 float book_homing_contact_position = 0.0f;
-float book_homing_start_position = 0.0f;
-bool book_homing_direction_known = false;
-float book_homing_position_direction = 0.0f;
 
 // Control parameters
 constexpr float BOOK_STRETCH_MIN_POS = -64174.0f;
@@ -118,9 +115,6 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         book_stretch_state = BookStretchMode::HOMING;
         book_stretch_offset = 0.0f;
         homing_current_count = 0;
-        book_homing_start_position = pos_fb;
-        book_homing_direction_known = false;
-        book_homing_position_direction = 0.0f;
         reset_book_stretch_profile();
     }
     book_stretch_prev_system_state = system_state;
@@ -130,29 +124,24 @@ inline void set_book_stretch(uint8_t system_state, float position, float pos_fb,
         // Homing: 正転方向（正の電流指令）で移動
         append_command(MotorId::BOOK_STRETCH, Mode::VELOCITY, BOOK_STRETCH_HOMING_VELOCITY);
 
-        // 位置フィードバックの増減方向を観測し、戻し方向を自動決定できるようにする。
-        if (!book_homing_direction_known) {
-            const float homing_delta = pos_fb - book_homing_start_position;
-            if (std::fabs(homing_delta) > BOOK_STRETCH_POSITION_TOLERANCE) {
-                book_homing_position_direction = (homing_delta > 0.0f) ? 1.0f : -1.0f;
-                book_homing_direction_known = true;
-            }
-        }
-        
-        // 一度でもしきい値を超えたら、そこで壁接触と判定する。
+        // 電流しきい値確認（デバウンス付き）
         if (std::fabs(motor_current_ma) > BOOK_STRETCH_HOMING_CURRENT_THRESHOLD) {
-            book_homing_contact_position = pos_fb;
-            book_stretch_offset = book_homing_contact_position;
-            const float backoff_direction =
-                book_homing_direction_known ? -book_homing_position_direction : -1.0f;
-            book_stretch_backoff_target = std::clamp(
-                book_stretch_offset + backoff_direction * BOOK_STRETCH_HOMING_BACKOFF,
-                BOOK_STRETCH_MIN_POS,
-                BOOK_STRETCH_MAX_POS);
-            book_stretch_state = BookStretchMode::HOMING_BACKOFF;
+            homing_current_count++;
+            if (homing_current_count >= BOOK_STRETCH_HOMING_DEBOUNCE_CYCLES) {
+                // 壁接触点を原点(offset)として記録し、そこから固定量だけ戻す。
+                book_homing_contact_position = pos_fb;
+                book_stretch_offset = book_homing_contact_position;
+                book_stretch_backoff_target = std::clamp(
+                    book_stretch_offset - BOOK_STRETCH_HOMING_BACKOFF,
+                    BOOK_STRETCH_MIN_POS,
+                    BOOK_STRETCH_MAX_POS);
+                book_stretch_state = BookStretchMode::HOMING_BACKOFF;
+                homing_current_count = 0;
+                book_stretch_profile_target = pos_fb;
+                book_stretch_profile_velocity_rpm = 0.0f;
+            }
+        } else if (homing_current_count > 0) {
             homing_current_count = 0;
-            book_stretch_profile_target = pos_fb;
-            book_stretch_profile_velocity_rpm = 0.0f;
         }
     }
     else if (book_stretch_state == BookStretchMode::HOMING_BACKOFF && system_state == 2) {
