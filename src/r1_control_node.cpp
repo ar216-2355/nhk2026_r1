@@ -113,8 +113,8 @@ class R1ControlNode : public rclcpp::Node {
             const bool b_pressed = latest_joy_.buttons[Joy::B];
             const bool x_pressed = latest_joy_.buttons[Joy::X];
             const bool y_pressed = latest_joy_.buttons[Joy::Y];
-            const bool dpad_x_pressed = latest_joy_.buttons[Joy::DPAD_X];
-            const bool dpad_y_pressed = latest_joy_.buttons[Joy::DPAD_Y];
+            const float dpad_x_pressed = latest_joy_.axes[Joy::DPAD_X];
+            const float dpad_y_pressed = latest_joy_.axes[Joy::DPAD_Y];
 
             if (a_pressed && !prev_a_button_ &&
                 lift_state[0] == SystemMode::DRIVE &&
@@ -160,7 +160,7 @@ class R1ControlNode : public rclcpp::Node {
                     }
                     
                 }
-             }
+            }
 
             switch (automaton_state) {
                 case 0: // 初期値
@@ -194,14 +194,14 @@ class R1ControlNode : public rclcpp::Node {
                     target_lift_position_ = 20000.0f;
                     break;
                 case 5: // 昇降を少し上げる
-                    target_lift_position_ = 21000.0f; // 昇降位置 new
+                    target_lift_position_ = 22000.0f; // 昇降位置 new
                     break;
                 case 6: // ポールを180度回転する
                     target_pole_angle = 195U; // ポールの把持の角度 new
-                    target_lift_position_ = 21000.0f; // 昇降位置
+                    target_lift_position_ = 22000.0f; // 昇降位置
                     break;
                 case 7: // 昇降を少し下げる
-                    target_lift_position_ = 12000.0f; // 昇降位置 new
+                    target_lift_position_ = 11000.0f; // 昇降位置 new
                     break;
                 case 8: // 昇降を自由に動かせるようにしたい
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
@@ -216,10 +216,10 @@ class R1ControlNode : public rclcpp::Node {
                         target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
                     }
                     break;
-                case 9: // ブックの把持を伸ばして昇降を下げて把持を開いてポールの把持を引く
+                case 9: // ブックの把持を伸ばして昇降を下げてポールの把持を引く
                     target_lift_position_ = 5500.0f; // 昇降位置 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
-                    target_pole_stretch_position_ = 10000.0f; // ポールの把持の位置
+                    target_pole_stretch_position_ = 18000.0f; // ポールの把持の位置
                     target_book_angle = 128U; // ブックの把持の角度
                     break;
                 case 12: // 把持を上向に回転する
@@ -227,11 +227,11 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置 new
                     break;
                 case 13: // ブックの把持を縮める
-                    target_book_stretch_position_ = -28000.0f; // ブックの把持の位置 new
+                    target_book_stretch_position_ = -25000.0f; // ブックの把持の位置 new
                     target_lift_position_ = 6000.0f; // 昇降位置
                     break;
                 case 14: // 昇降を一番上に上げる
-                    target_lift_position_ = 24000.0f; // 昇降位置 new
+                    target_lift_position_ = 25000.0f; // 昇降位置 new
                     break;
                 case 17: // ブックの向きを横に
                     target_book_angle = 128U; // ブックの把持の角度
@@ -248,7 +248,7 @@ class R1ControlNode : public rclcpp::Node {
                 case 21: // ブックの把持を前向きにする
                     target_book_angle = 128U; // ブックの把持の角度 new
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
-                    target_pole_stretch_position_ = 10000.0f;
+                    target_pole_stretch_position_ = 18000.0f;
                     break;
                 case 25: // ブックの把持を縮めてポールの把持を伸ばす
                     target_book_stretch_position_ = -360.0f; // ブックの把持の位置
