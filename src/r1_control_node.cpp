@@ -231,7 +231,7 @@ class R1ControlNode : public rclcpp::Node {
                 case 9: // ブックの把持を伸ばして昇降を下げてポールの把持を引く
                     target_lift_position_ = 5500.0f; // 昇降位置 new
                     target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
-                    target_pole_stretch_position_ = 18000.0f; // ポールの把持の位置
+                    target_pole_stretch_position_ = 15000.0f; // ポールの把持の位置
                     target_book_angle = 128U; // ブックの把持の角度
                     break;
                 case 10: // 把持を上向に回転する
@@ -260,7 +260,7 @@ class R1ControlNode : public rclcpp::Node {
                 case 16: // ブックの把持を前向きにする
                     target_book_angle = 106U; // ブックの把持の角度 new
                     target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
-                    target_pole_stretch_position_ = 18000.0f;
+                    target_pole_stretch_position_ = 15000.0f;
                     break;
                 case 17: // ブックの把持を縮めてポールの把持を伸ばす
                     target_book_stretch_position_ = -360.0f; // ブックの把持の位置
