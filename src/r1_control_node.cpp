@@ -161,7 +161,7 @@ class R1ControlNode : public rclcpp::Node {
             } else if ((prev_dpad_right_button_ || prev_dpad_left_button_) && !dpad_any_now) {
                 target_book_catch_current = 0.0f;
             } else if (dpad_up_now) {
-                target_book_catch_current = -0.32f;
+                target_book_catch_current = -0.30f;
             } else if (dpad_down_now) {
                 target_book_catch_current = 0.32f;
             } else if (prev_dpad_up_button_ && !dpad_any_now) {
