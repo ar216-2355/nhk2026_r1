@@ -53,6 +53,10 @@ class R1ControlNode : public rclcpp::Node {
     bool prev_y_button_ = false;
     bool prev_dpad_x_button_ = false;
     bool prev_dpad_y_button_ = false;
+    bool prev_dpad_up_button_ = false;
+    bool prev_dpad_down_button_ = false;
+    bool prev_dpad_left_button_ = false;
+    bool prev_dpad_right_button_ = false;
     float target_lift_position_ = 0.0f;
     float target_book_stretch_position_ = 0.0f;
     float target_pole_stretch_position_ = 0.0f;
@@ -60,8 +64,6 @@ class R1ControlNode : public rclcpp::Node {
     uint16_t target_pole_angle = 0;
     float target_book_catch_current = 0.0f;
     uint8_t denjiben_catch = 0;
-
-    float terbo_mode = 1.0f;
 
     int automaton_state = 0;
 
@@ -115,9 +117,11 @@ class R1ControlNode : public rclcpp::Node {
             const bool b_pressed = latest_joy_.buttons[Joy::B];
             const bool x_pressed = latest_joy_.buttons[Joy::X];
             const bool y_pressed = latest_joy_.buttons[Joy::Y];
-            const bool lb_pressed = latest_joy_.buttons[Joy::LB];
-            const float dpad_x_pressed = latest_joy_.axes[Joy::DPAD_X];
-            const float dpad_y_pressed = latest_joy_.axes[Joy::DPAD_Y];
+            const bool dpad_up_now = latest_joy_.axes.size() > Joy::DPAD_Y && latest_joy_.axes[Joy::DPAD_Y] > 0.5f;
+            const bool dpad_down_now = latest_joy_.axes.size() > Joy::DPAD_Y && latest_joy_.axes[Joy::DPAD_Y] < -0.5f;
+            const bool dpad_right_now = latest_joy_.axes.size() > Joy::DPAD_X && latest_joy_.axes[Joy::DPAD_X] > 0.5f;
+            const bool dpad_left_now = latest_joy_.axes.size() > Joy::DPAD_X && latest_joy_.axes[Joy::DPAD_X] < -0.5f;
+            const bool dpad_any_now = dpad_up_now || dpad_down_now || dpad_left_now || dpad_right_now;
 
             if (a_pressed && !prev_a_button_ &&
                 lift_state[0] == SystemMode::DRIVE &&
@@ -144,34 +148,26 @@ class R1ControlNode : public rclcpp::Node {
                 if (automaton_state < 0) automaton_state = 0;
             }
 
-            if(y_pressed && !prev_y_button_){
-                target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
-            }
-
-            if(lb_pressed) {
-                terbo_mode = 1.5;
-            }else{
-                terbo_mode = 1.0;
-            }
-
-            if(dpad_y_pressed && !prev_dpad_y_button_) {
-                if (latest_joy_.axes.size() > Joy::DPAD_Y) {
-                    if(latest_joy_.axes[Joy::DPAD_Y] > 0.5f) {
-                        target_book_catch_current = -0.25f * terbo_mode;
-                    } else if(latest_joy_.axes[Joy::DPAD_Y] < -0.5f) {
-                        target_book_catch_current = 0.25f * terbo_mode;
-                    }
+            if(y_pressed && !prev_y_button_ && automaton_state >= 19){
+                if(target_book_stretch_position_ == -60000.0f){
+                    target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
+                } else {
+                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
                 }
             }
-            if(dpad_x_pressed && !prev_dpad_x_button_) {
-                if (latest_joy_.axes.size() > Joy::DPAD_X) {
-                    if(latest_joy_.axes[Joy::DPAD_X] > 0.5f) {
-                        target_book_catch_current = 0.0f;
-                    } else if(latest_joy_.axes[Joy::DPAD_X] < -0.5f) {
-                        target_book_catch_current = 0.0f;
-                    }
-                    
-                }
+
+            if (dpad_right_now || dpad_left_now) {
+                target_book_catch_current = 0.0f;
+            } else if ((prev_dpad_right_button_ || prev_dpad_left_button_) && !dpad_any_now) {
+                target_book_catch_current = 0.0f;
+            } else if (dpad_up_now) {
+                target_book_catch_current = -0.32f;
+            } else if (dpad_down_now) {
+                target_book_catch_current = 0.32f;
+            } else if (prev_dpad_up_button_ && !dpad_any_now) {
+                target_book_catch_current = -0.25f;
+            } else if (prev_dpad_down_button_ && !dpad_any_now) {
+                target_book_catch_current = 0.25f;
             }
 
             switch (automaton_state) {
@@ -288,6 +284,10 @@ class R1ControlNode : public rclcpp::Node {
             prev_b_button_ = b_pressed;
             prev_x_button_ = x_pressed;
             prev_y_button_ = y_pressed;
+            prev_dpad_up_button_ = dpad_up_now;
+            prev_dpad_down_button_ = dpad_down_now;
+            prev_dpad_left_button_ = dpad_left_now;
+            prev_dpad_right_button_ = dpad_right_now;
         }
 
         set_lift_position(
