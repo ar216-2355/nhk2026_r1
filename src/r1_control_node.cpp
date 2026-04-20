@@ -165,7 +165,7 @@ class R1ControlNode : public rclcpp::Node {
             } else if (dpad_down_now) {
                 target_book_catch_current = 0.32f;
             } else if (prev_dpad_up_button_ && !dpad_any_now) {
-                target_book_catch_current = -0.25f;
+                target_book_catch_current = 0.0f;
             } else if (prev_dpad_down_button_ && !dpad_any_now) {
                 target_book_catch_current = 0.25f;
             }
@@ -180,7 +180,6 @@ class R1ControlNode : public rclcpp::Node {
                     
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
                     target_book_angle = 42U; // ブックの把持の角度
-
                     break;
                 case 1: //ブックの把持を横に、ポールの把持を伸ばす
                     target_pole_stretch_position_ = 1000.0f;
