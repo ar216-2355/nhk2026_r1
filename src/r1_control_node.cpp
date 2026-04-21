@@ -171,132 +171,48 @@ class R1ControlNode : public rclcpp::Node {
                 target_book_catch_current = 0.25f;
             }
 
-            // switch (automaton_state) {
-            //     case 0: // 初期値
-            //         target_lift_position_ = 1000.0f; // 昇降位置
-                    
-            //         target_pole_stretch_position_ = 25000.0f; // ポールの把持の位置
-            //         target_pole_angle = 111U; // ポールの把持の角度
-            //         denjiben_catch = 0; // 電磁弁のコマンド
-                    
-            //         target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
-            //         target_book_angle = 42U; // ブックの把持の角度
-            //         break;
-            //     case 1: //ブックの把持を横に、ポールの把持を伸ばす
-            //         target_pole_stretch_position_ = 1000.0f;
-            //         target_book_angle = 128U; // ブックの把持の角度
-            //         target_lift_position_ = 1000.0f;
-            //         target_pole_angle = 111U; // ポールの把持の角度
-            //         break;
-            //     case 2: // 昇降をポール取得用に上げる
-            //         target_pole_angle = 21U; // ポールの把持の角度 new
-            //         target_lift_position_ = 20000.0f; // 昇降位置 new
-            //         denjiben_catch = 0; 
-            //         break;
-            //     case 3: // ポールを取得する（開く）
-            //         denjiben_catch = 1; // 電磁弁のコマンドnew
-            //         break;
-            //     case 4: // ポールを取得する（閉じる）
-            //         denjiben_catch = 0; // 電磁弁のコマンドnew
-            //         target_pole_angle = 21U;
-            //         target_lift_position_ = 20000.0f;
-            //         break;
-            //     case 5: // 昇降を少し上げる
-            //         target_lift_position_ = 22000.0f; // 昇降位置 new
-            //         break;
-            //     case 6: // ポールを180度回転する
-            //         target_pole_angle = 195U; // ポールの把持の角度 new
-            //         target_lift_position_ = 22000.0f; // 昇降位置
-            //         break;
-            //     case 7: // 昇降を少し下げる
-            //         target_lift_position_ = 11000.0f; // 昇降位置 new
-            //         break;
-            //     case 8: // 昇降を自由に動かせるようにしたい
-            //         target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
-            //         if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
-            //             constexpr float kLiftManualDeadzone = 0.15f;
-            //             constexpr float kLiftManualSpeedPerSec = 12000.0f;
-            //             float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
-            //             if (std::fabs(lift_input) < kLiftManualDeadzone) {
-            //                 lift_input = 0.0f;
-            //             }
-            //             target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
-            //             target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
-            //         }
-            //         break;
-            //     case 9: // ブックの把持を伸ばして昇降を下げてポールの把持を引く
-            //         target_lift_position_ = 5500.0f; // 昇降位置 new
-            //         target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
-            //         target_pole_stretch_position_ = 15000.0f; // ポールの把持の位置
-            //         target_book_angle = 128U; // ブックの把持の角度
-            //         break;
-            //     case 10: // 把持を上向に回転する
-            //         target_book_angle = 42U; // ブックの把持の角度 new
-            //         target_book_stretch_position_ = -60000.0f; // ブックの把持の位置 new
-            //         break;
-            //     case 11: // ブックの把持を縮める
-            //         target_book_stretch_position_ = -25000.0f; // ブックの把持の位置 new
-            //         target_lift_position_ = 6000.0f; // 昇降位置
-            //         break;
-            //     case 12: // 昇降を一番上に上げる
-            //         target_lift_position_ = 25000.0f; // 昇降位置 new
-            //         break;
-            //     case 13: // ブックの向きを横に
-            //         target_book_angle = 128U; // ブックの把持の角度
-            //         target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
-            //         break;
-            //     case 14: // ブックの把持を伸ばす
-            //         target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
-            //         target_book_angle = 128U; // ブックの把持の角度
-            //         break;
-            //     case 15: // ブックの把持を引いて上向にする
-            //         target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
-            //         target_book_angle = 42U; // ブックの把持の角度
-            //         break;
-            //     case 16: // ブックの把持を前向きにする
-            //         target_book_angle = 106U; // ブックの把持の角度 new
-            //         target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
-            //         target_pole_stretch_position_ = 15000.0f;
-            //         break;
-            //     case 17: // ブックの把持を縮めてポールの把持を伸ばす
-            //         target_book_stretch_position_ = -360.0f; // ブックの把持の位置
-            //         target_pole_stretch_position_ = 360.0f;
-            //         break;
-            //     case 18:
-            //         target_lift_position_ = 0.0f; // 昇降位置
-            //         break;
-            //     case 19:
-            //         if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
-            //             constexpr float kLiftManualDeadzone = 0.15f;
-            //             constexpr float kLiftManualSpeedPerSec = 12000.0f;
-            //             float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
-            //             if (std::fabs(lift_input) < kLiftManualDeadzone) {
-            //                 lift_input = 0.0f;
-            //             }
-            //             target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
-            //             target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
-            //         }
-            //         break;
-            //     default:
-            //         break;
-            // }
-
             switch (automaton_state) {
                 case 0: // 初期値
                     target_lift_position_ = 1000.0f; // 昇降位置
                     
-                    target_pole_stretch_position_ = 0.0f; // ポールの把持の位置
+                    target_pole_stretch_position_ = 25000.0f; // ポールの把持の位置
                     target_pole_angle = 111U; // ポールの把持の角度
                     denjiben_catch = 0; // 電磁弁のコマンド
                     
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
+                    target_book_angle = 42U; // ブックの把持の角度
+                    break;
+                case 1: //ブックの把持を横に、ポールの把持を伸ばす
+                    target_pole_stretch_position_ = 1000.0f;
                     target_book_angle = 128U; // ブックの把持の角度
+                    target_lift_position_ = 1000.0f;
+                    target_pole_angle = 111U; // ポールの把持の角度
                     break;
-                case 1:
-                    target_pole_angle = 201U; // ポールの把持の角度
+                case 2: // 昇降をポール取得用に上げる
+                    target_pole_angle = 21U; // ポールの把持の角度 new
+                    target_lift_position_ = 20000.0f; // 昇降位置 new
+                    denjiben_catch = 0; 
                     break;
-                case 2:
-                    target_pole_angle = 111U;
+                case 3: // ポールを取得する（開く）
+                    denjiben_catch = 1; // 電磁弁のコマンドnew
+                    break;
+                case 4: // ポールを取得する（閉じる）
+                    denjiben_catch = 0; // 電磁弁のコマンドnew
+                    target_pole_angle = 21U;
+                    target_lift_position_ = 20000.0f;
+                    break;
+                case 5: // 昇降を少し上げる
+                    target_lift_position_ = 22000.0f; // 昇降位置 new
+                    break;
+                case 6: // ポールを180度回転する
+                    target_pole_angle = 195U; // ポールの把持の角度 new
+                    target_lift_position_ = 22000.0f; // 昇降位置
+                    break;
+                case 7: // 昇降を少し下げる
+                    target_lift_position_ = 11000.0f; // 昇降位置 new
+                    break;
+                case 8: // 昇降を自由に動かせるようにしたい
+                    target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
                     if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
                         constexpr float kLiftManualSpeedPerSec = 12000.0f;
@@ -308,8 +224,48 @@ class R1ControlNode : public rclcpp::Node {
                         target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
                     }
                     break;
-                case 3:
-                    target_pole_angle = 85U;
+                case 9: // ブックの把持を伸ばして昇降を下げてポールの把持を引く
+                    target_lift_position_ = 5500.0f; // 昇降位置 new
+                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
+                    target_pole_stretch_position_ = 15000.0f; // ポールの把持の位置
+                    target_book_angle = 128U; // ブックの把持の角度
+                    break;
+                case 10: // 把持を上向に回転する
+                    target_book_angle = 42U; // ブックの把持の角度 new
+                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置 new
+                    break;
+                case 11: // ブックの把持を縮める
+                    target_book_stretch_position_ = -25000.0f; // ブックの把持の位置 new
+                    target_lift_position_ = 6000.0f; // 昇降位置
+                    break;
+                case 12: // 昇降を一番上に上げる
+                    target_lift_position_ = 25000.0f; // 昇降位置 new
+                    break;
+                case 13: // ブックの向きを横に
+                    target_book_angle = 128U; // ブックの把持の角度
+                    target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
+                    break;
+                case 14: // ブックの把持を伸ばす
+                    target_book_stretch_position_ = -60000.0f; // ブックの把持の位置
+                    target_book_angle = 128U; // ブックの把持の角度
+                    break;
+                case 15: // ブックの把持を引いて上向にする
+                    target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
+                    target_book_angle = 42U; // ブックの把持の角度
+                    break;
+                case 16: // ブックの把持を前向きにする
+                    target_book_angle = 106U; // ブックの把持の角度 new
+                    target_book_stretch_position_ = -28000.0f; // ブックの把持の位置
+                    target_pole_stretch_position_ = 15000.0f;
+                    break;
+                case 17: // ブックの把持を縮めてポールの把持を伸ばす
+                    target_book_stretch_position_ = -360.0f; // ブックの把持の位置
+                    target_pole_stretch_position_ = 360.0f;
+                    break;
+                case 18:
+                    target_lift_position_ = 0.0f; // 昇降位置
+                    break;
+                case 19:
                     if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
                         constexpr float kLiftManualSpeedPerSec = 12000.0f;
@@ -324,6 +280,50 @@ class R1ControlNode : public rclcpp::Node {
                 default:
                     break;
             }
+
+            // switch (automaton_state) {
+            //     case 0: // 初期値
+            //         target_lift_position_ = 1000.0f; // 昇降位置
+                    
+            //         target_pole_stretch_position_ = 0.0f; // ポールの把持の位置
+            //         target_pole_angle = 111U; // ポールの把持の角度
+            //         denjiben_catch = 0; // 電磁弁のコマンド
+                    
+            //         target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
+            //         target_book_angle = 128U; // ブックの把持の角度
+            //         break;
+            //     case 1:
+            //         target_pole_angle = 201U; // ポールの把持の角度
+            //         break;
+            //     case 2:
+            //         target_pole_angle = 111U;
+            //         if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
+            //             constexpr float kLiftManualDeadzone = 0.15f;
+            //             constexpr float kLiftManualSpeedPerSec = 12000.0f;
+            //             float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
+            //             if (std::fabs(lift_input) < kLiftManualDeadzone) {
+            //                 lift_input = 0.0f;
+            //             }
+            //             target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
+            //             target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
+            //         }
+            //         break;
+            //     case 3:
+            //         target_pole_angle = 85U;
+            //         if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
+            //             constexpr float kLiftManualDeadzone = 0.15f;
+            //             constexpr float kLiftManualSpeedPerSec = 12000.0f;
+            //             float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
+            //             if (std::fabs(lift_input) < kLiftManualDeadzone) {
+            //                 lift_input = 0.0f;
+            //             }
+            //             target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
+            //             target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
+            //         }
+            //         break;
+            //     default:
+            //         break;
+            // }
 
             denjiben_catch = lb_pressed ? 1 : 0;
 
