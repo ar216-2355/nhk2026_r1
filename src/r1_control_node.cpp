@@ -284,7 +284,7 @@ class R1ControlNode : public rclcpp::Node {
                 case 0: // 初期値
                     target_lift_position_ = 1000.0f; // 昇降位置
                     
-                    target_pole_stretch_position_ = 25000.0f; // ポールの把持の位置
+                    target_pole_stretch_position_ = 0.0f; // ポールの把持の位置
                     target_pole_angle = 111U; // ポールの把持の角度
                     denjiben_catch = 0; // 電磁弁のコマンド
                     
