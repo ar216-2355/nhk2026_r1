@@ -289,7 +289,7 @@ class R1ControlNode : public rclcpp::Node {
                     denjiben_catch = 0; // 電磁弁のコマンド
                     
                     target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
-                    target_book_angle = 42U; // ブックの把持の角度
+                    target_book_angle = 128U; // ブックの把持の角度
                     break;
                 case 1:
                     if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
