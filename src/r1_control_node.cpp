@@ -117,7 +117,6 @@ class R1ControlNode : public rclcpp::Node {
             const bool b_pressed = latest_joy_.buttons[Joy::B];
             const bool x_pressed = latest_joy_.buttons[Joy::X];
             const bool y_pressed = latest_joy_.buttons[Joy::Y];
-            const bool lb_pressed = latest_joy_.buttons.size() > Joy::LB && latest_joy_.buttons[Joy::LB];
             const bool dpad_up_now = latest_joy_.axes.size() > Joy::DPAD_Y && latest_joy_.axes[Joy::DPAD_Y] > 0.5f;
             const bool dpad_down_now = latest_joy_.axes.size() > Joy::DPAD_Y && latest_joy_.axes[Joy::DPAD_Y] < -0.5f;
             const bool dpad_right_now = latest_joy_.axes.size() > Joy::DPAD_X && latest_joy_.axes[Joy::DPAD_X] > 0.5f;
@@ -281,52 +280,7 @@ class R1ControlNode : public rclcpp::Node {
                     break;
             }
 
-            // switch (automaton_state) {
-            //     case 0: // 初期値
-            //         target_lift_position_ = 1000.0f; // 昇降位置
-                    
-            //         target_pole_stretch_position_ = 0.0f; // ポールの把持の位置
-            //         target_pole_angle = 111U; // ポールの把持の角度
-            //         denjiben_catch = 0; // 電磁弁のコマンド
-                    
-            //         target_book_stretch_position_ = -1000.0f; // ブックの把持の位置
-            //         target_book_angle = 128U; // ブックの把持の角度
-            //         break;
-            //     case 1:
-            //         target_pole_angle = 201U; // ポールの把持の角度
-            //         break;
-            //     case 2:
-            //         target_pole_angle = 111U;
-            //         if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
-            //             constexpr float kLiftManualDeadzone = 0.15f;
-            //             constexpr float kLiftManualSpeedPerSec = 12000.0f;
-            //             float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
-            //             if (std::fabs(lift_input) < kLiftManualDeadzone) {
-            //                 lift_input = 0.0f;
-            //             }
-            //             target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
-            //             target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
-            //         }
-            //         break;
-            //     case 3:
-            //         target_pole_angle = 85U;
-            //         if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
-            //             constexpr float kLiftManualDeadzone = 0.15f;
-            //             constexpr float kLiftManualSpeedPerSec = 12000.0f;
-            //             float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
-            //             if (std::fabs(lift_input) < kLiftManualDeadzone) {
-            //                 lift_input = 0.0f;
-            //             }
-            //             target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
-            //             target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
-            //         }
-            //         break;
-            //     default:
-            //         break;
-            // }
-
-            denjiben_catch = lb_pressed ? 1 : 0;
-
+            
             prev_a_button_ = a_pressed;
             prev_b_button_ = b_pressed;
             prev_x_button_ = x_pressed;
