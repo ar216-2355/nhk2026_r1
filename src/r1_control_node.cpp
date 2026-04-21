@@ -293,7 +293,7 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_angle = 128U; // ブックの把持の角度
                     break;
                 case 1:
-                    target_pole_angle = 16U; // ポールの把持の角度
+                    target_pole_angle = 196U; // ポールの把持の角度
                     break;
                 case 2:
                     target_pole_angle = 111U;
