@@ -292,6 +292,7 @@ class R1ControlNode : public rclcpp::Node {
                     target_book_angle = 128U; // ブックの把持の角度
                     break;
                 case 1:
+                    target_pole_angle = 111U;
                     if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
                         constexpr float kLiftManualSpeedPerSec = 12000.0f;
@@ -305,8 +306,17 @@ class R1ControlNode : public rclcpp::Node {
                     break;
                 case 2:
                     target_pole_angle = 85U;
+                    if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
+                        constexpr float kLiftManualDeadzone = 0.15f;
+                        constexpr float kLiftManualSpeedPerSec = 12000.0f;
+                        float lift_input = latest_joy_.axes[Joy::R_STICK_Y];
+                        if (std::fabs(lift_input) < kLiftManualDeadzone) {
+                            lift_input = 0.0f;
+                        }
+                        target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
+                        target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
+                    }
                     break;
-                    target_pole_angle = 
                 case 3:
                     break;
                 default:
