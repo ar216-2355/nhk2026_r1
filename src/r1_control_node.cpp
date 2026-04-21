@@ -295,7 +295,7 @@ class R1ControlNode : public rclcpp::Node {
                 case 1:
                     target_pole_angle = 106U; // ポールの把持の角度
                     break;
-                case 4:
+                case 2:
                     target_pole_angle = 111U;
                     if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
@@ -308,7 +308,7 @@ class R1ControlNode : public rclcpp::Node {
                         target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
                     }
                     break;
-                case 5:
+                case 3:
                     target_pole_angle = 85U;
                     if (latest_joy_.axes.size() > Joy::R_STICK_Y) {
                         constexpr float kLiftManualDeadzone = 0.15f;
@@ -320,8 +320,6 @@ class R1ControlNode : public rclcpp::Node {
                         target_lift_position_ += lift_input * kLiftManualSpeedPerSec * 0.01f;
                         target_lift_position_ = std::clamp(target_lift_position_, lift_min_relative_pos, lift_max_relative_pos);
                     }
-                    break;
-                case 6:
                     break;
                 default:
                     break;
