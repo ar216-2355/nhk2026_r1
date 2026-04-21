@@ -304,7 +304,9 @@ class R1ControlNode : public rclcpp::Node {
                     }
                     break;
                 case 2:
+                    target_pole_angle = 85U;
                     break;
+                    target_pole_angle = 
                 case 3:
                     break;
                 default:
